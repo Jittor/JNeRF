@@ -1,0 +1,1 @@
+# Instant Neural Graphics Primitives with a Multiresolution Hash Encoding

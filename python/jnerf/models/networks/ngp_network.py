@@ -1,0 +1,94 @@
+from turtle import pos, position
+import jittor as jt
+from jittor import nn, init
+import os
+from jnerf.utils.config import get_cfg
+from jnerf.utils.registry import build_from_cfg, NETWORKS, ENCODERS
+from jnerf.ops.code_ops.fully_fused_mlp import FullyFusedMlp_weight
+
+class FMLP(nn.Module):
+    def __init__(self, weight_shapes, weights=None):
+        super(FMLP, self).__init__()
+        if weights == None:                   
+            assert len(weight_shapes) > 2
+            self.output_shape1 = weight_shapes[-1]
+            dweights = []
+            for i in range(len(weight_shapes) - 1):
+                dweights.append(init.invariant_uniform((weight_shapes[i], weight_shapes[i+1]), "float16").float16())
+        else:
+            assert len(weights) >= 2
+            self.output_shape1 = weights[-1].shape[-1]
+            dweights = weights
+        self.func = FullyFusedMlp_weight(dweights)
+        con_weights = []
+        for i in range(len(dweights)):
+            if i == len(dweights) - 1:
+                if dweights[i].shape[1] < 16: 
+                    dweights[i] = jt.concat([dweights[i], jt.zeros((dweights[i].shape[0], 16 - dweights[i].shape[1]))], -1).float16()
+            con_weights.append(dweights[i].transpose(1,0).reshape(-1))
+        jt_con_weights = jt.concat(con_weights, -1)
+        self.con_weights = jt_con_weights
+
+    def execute(self, x):
+        if x.shape[0] == 0:
+            return jt.empty([0, self.output_shape1]).float16()
+        ret = self.func(x, self.con_weights)
+        if self.output_shape1 != ret.shape[1]:
+            ret = ret[:,:self.output_shape1]
+        return ret
+
+@NETWORKS.register_module()
+class NGPNetworks(nn.Module):
+    def __init__(self, use_fully=True, aabb_scale=1, density_hidden_layer=1, density_n_neurons=64, rgb_hidden_layer=2, rgb_n_neurons=64):
+        super(NGPNetworks, self).__init__()
+        self.use_fully = use_fully
+        self.cfg = get_cfg()
+        self.using_fp16 = self.cfg.fp16
+        if self.use_fully and jt.flags.cuda_archs[0] >= 70:
+            self.density_mlp = FMLP([32, density_n_neurons, 16])
+            self.rgb_mlp = FMLP([32, rgb_n_neurons, rgb_n_neurons, 3])
+        else:
+            self.density_mlp = nn.Sequential(
+                nn.Linear(32, density_n_neurons, bias=False), 
+                nn.ReLU(), 
+                nn.Linear(density_n_neurons, 16, bias=False))
+            self.rgb_mlp = nn.Sequential(nn.Linear(32, rgb_n_neurons, bias=False),
+                            nn.ReLU(),
+                            nn.Linear(rgb_n_neurons, rgb_n_neurons, bias=False),
+                            nn.ReLU(),
+                            nn.Linear(rgb_n_neurons, 3, bias=False))
+
+        self.pos_encoder = build_from_cfg(self.cfg.encoder.pos_encoder, ENCODERS, aabb_scale=aabb_scale, using_fp16=self.using_fp16)
+        self.dir_encoder = build_from_cfg(self.cfg.encoder.dir_encoder, ENCODERS, using_fp16=self.using_fp16)
+        self.set_fp16()
+        self.run_count = 0
+
+    def execute(self, inputs):  # inputs:(batch_size,7)
+        if self.using_fp16:
+            with jt.flag_scope(auto_mixed_precision_level=5):
+                return self.execute_(inputs)
+        else:
+            return self.execute_(inputs)
+
+    def execute_(self, inputs):  # inputs:(batch_size,7)
+        assert(inputs.shape[1] == 7)
+        pos_t_input, dir_input = jt.split(inputs, [4, 3], dim=-1)
+        dir_input = self.dir_encoder(dir_input)  # batchsize,16
+        pos_t_input = self.pos_encoder(pos_t_input)  # (batchsize,32)
+        density = self.density_mlp(pos_t_input)
+        rgb = jt.concat([density, dir_input], -1)  # batchsize,32
+        rgb = self.rgb_mlp(rgb)
+        outputs = jt.concat([rgb, density[..., :1]], -1)  # batchsize 4: rgbd
+        return outputs
+
+    def density(self, inputs):  # batchsize,4
+        density = self.pos_encoder(inputs)
+        density = self.density_mlp(density)
+        return density
+
+    def set_fp16(self):
+        if self.using_fp16:
+            self.density_mlp.float16()
+            self.rgb_mlp.float16()
+            self.pos_encoder.float16()
+            self.dir_encoder.float16()
