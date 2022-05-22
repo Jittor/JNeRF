@@ -65,7 +65,7 @@ Train and test on `lego` scene are combined in a single command.
 python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py
 ```
 
-### Experiments
+## Performance
 
 JNeRF-NGP(Instant-ngp implemented by JNeRF) achieves similar performance and speed to the paper. The performance comparison can be seen in the table below and training speed of JNeRF-NGP on RTX 3090 is about 133 iters/s. 
 
@@ -90,13 +90,12 @@ QQ Group: 761222083
 
 <img src="docs/qrcode.jpg" width="200"/>
 
-### The Team
-
+## The Team
 
 JNeRF is currently maintained by the [Tsinghua CSCG Group](https://cg.cs.tsinghua.edu.cn/). If you are also interested in JNeRF and want to improve it, Please join us!
 
 
-### Citation
+## Citation
 
 
 ```
