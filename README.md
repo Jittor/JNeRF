@@ -1,6 +1,12 @@
 # JNeRF
 ## Introduction
-JNeRF is an NeRF benchmark based on [Jittor](https://github.com/Jittor/jittor). 
+JNeRF is an NeRF benchmark based on [Jittor](https://github.com/Jittor/jittor). JNeRF supports Instant-NGP capable of training NeRF in 5 seconds and achieves similar performance and speed to the paper.
+
+5s training demo of Instant-NGP implemented by JNeRF:
+
+<video width="400" height="400" controls>
+    <source src="https://cg.cs.tsinghua.edu.cn/jittor/images/download/demo_5s.mp4" type="video/mp4">
+</video>
 
 ## Install
 JNeRF environment requirements:
@@ -25,7 +31,7 @@ If you have any installation problems for Jittor, please refer to [Jittor](https
 
 **Step 2: Install JNeRF**
  
-You can add ```export PYTHONPATH=$PYTHONPATH:{you_own_path_to_jittor}/jittor/python:{you_own_path_to_jnerf}/JNeRF/python``` into ```.bashrc```, and run
+You can add ```export PYTHONPATH=$PYTHONPATH:{your_path_to_jnerf}/JNeRF/python``` into ```.bashrc```, and run
 ```shell
 source .bashrc
 ```
@@ -34,9 +40,13 @@ source .bashrc
 
 ### Datasets
 
-We use fox datasets and blender lego datasets for training. 
+We use fox datasets and blender lego datasets for training demonstrations. 
 
-Lego: https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1. In the blender category.
+#### Fox Dataset
+We provided fox dataset in this repository at `./data/fox`.
+
+#### Lego Dataset
+You can download the blender dataset at https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1. And move `lego` folder to `./data/lego`.
 
 #### Customized Datasets
 
@@ -48,16 +58,21 @@ We organize our configs of JNeRF in projects/. You are referred to ./projects/ng
 
 ### Train & Test
 
-Train and test are combined in a single command.
+Train and test on `lego` scene are combined in a single command.
 ```shell
 python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py
 ```
 
-### Models
+### Experiments
 
-|    Models     | Dataset | Image_size | Test PSNR | Optim | Lr schd | Paper | Config  | Download |
-| :-----------: | :-----: |:-----:|:-----:| :-----: | :-----:| :-----:| :----: |:--------:|:--------: | :--------: |
-| Instant-ngp | lego | 1920/1080 | 36.49 |  Adam+ema  |   expdecay   | [NVIDIA](https://nvlabs.github.io/instant-ngp/assets/mueller2022instant.pdf)| [config](projects/ngp/configs/ngp_base.py) |  |
+JNeRF-NGP(Instant-ngp implemented by JNeRF) achieves similar performance and speed to the paper. The performance comparison can be seen in the table below and training speed of JNeRF-NGP on RTX 3090 is about 133 iters/s. 
+
+JNeRF will support more valuable NeRF work in the future, if you are also interested in JNeRF and want to improve it, Please join us!
+
+|    Models     |    implementation      | Dataset | PSNR |
+|----|---|---|---|
+| Instant-ngp | paper | lego | 36.39 (5min) |
+| Instant-ngp | JNeRF | lego | 36.41 (5min) |
 
 ## Contact Us
 
@@ -71,7 +86,7 @@ File an issue: https://github.com/Jittor/jittor/issues
 QQ Group: 761222083
 
 
-<img src="https://cg.cs.tsinghua.edu.cn/jittor/images/news/2020-12-8-21-19-1_2_2/fig4.png" width="200"/>
+<img src="https://cg.cs.tsinghua.edu.cn/jittor/images/download/qqgroup_qrcode.png" width="200"/>
 
 ### The Team
 
@@ -83,6 +98,23 @@ JNeRF is currently maintained by the [Tsinghua CSCG Group](https://cg.cs.tsinghu
 
 
 ```
+@article{mueller2022instant,
+    author = {Thomas M\"uller and Alex Evans and Christoph Schied and Alexander Keller},
+    title = {Instant Neural Graphics Primitives with a Multiresolution Hash Encoding},
+    journal = {ACM Trans. Graph.},
+    issue_date = {July 2022},
+    volume = {41},
+    number = {4},
+    month = jul,
+    year = {2022},
+    pages = {102:1--102:15},
+    articleno = {102},
+    numpages = {15},
+    url = {https://doi.org/10.1145/3528223.3530127},
+    doi = {10.1145/3528223.3530127},
+    publisher = {ACM},
+    address = {New York, NY, USA},
+}
 @article{hu2020jittor,
   title={Jittor: a novel deep learning framework with meta-operators and unified graph execution},
   author={Hu, Shi-Min and Liang, Dun and Yang, Guo-Ye and Yang, Guo-Wei and Zhou, Wen-Yang},
