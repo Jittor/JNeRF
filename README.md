@@ -3,7 +3,7 @@ JNeRF is an NeRF benchmark based on [Jittor](https://github.com/Jittor/jittor). 
 
 5s training demo of Instant-NGP implemented by JNeRF:
 
-<img src="https://cg.cs.tsinghua.edu.cn/jittor/images/download/demo_5s.gif" width="400"/>
+<img src="docs/demo_5s.gif" width="300"/>
 
 ## Install
 JNeRF environment requirements:
@@ -83,7 +83,7 @@ File an issue: https://github.com/Jittor/jittor/issues
 QQ Group: 761222083
 
 
-<img src="https://cg.cs.tsinghua.edu.cn/jittor/images/download/qqgroup_qrcode.jpg" width="200"/>
+<img src="docs/qrcode.jpg" width="200"/>
 
 ### The Team
 
