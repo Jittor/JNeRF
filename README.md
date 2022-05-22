@@ -1,12 +1,9 @@
 # JNeRF
-## Introduction
 JNeRF is an NeRF benchmark based on [Jittor](https://github.com/Jittor/jittor). JNeRF supports Instant-NGP capable of training NeRF in 5 seconds and achieves similar performance and speed to the paper.
 
 5s training demo of Instant-NGP implemented by JNeRF:
 
-<video width="400" height="400" controls>
-    <source src="https://cg.cs.tsinghua.edu.cn/jittor/images/download/demo_5s.mp4" type="video/mp4">
-</video>
+<img src="https://cg.cs.tsinghua.edu.cn/jittor/images/download/demo_5s.gif" width="400"/>
 
 ## Install
 JNeRF environment requirements:
@@ -54,7 +51,7 @@ If you want to train JNerf with your own dataset, then you should follow the for
 
 ### config
 
-We organize our configs of JNeRF in projects/. You are referred to ./projects/ngp/configs/ngp_base.py to learn how it works.
+We organize our configs of JNeRF in projects/. You are referred to `./projects/ngp/configs/ngp_base.py` to learn how it works.
 
 ### Train & Test
 
@@ -86,7 +83,7 @@ File an issue: https://github.com/Jittor/jittor/issues
 QQ Group: 761222083
 
 
-<img src="https://cg.cs.tsinghua.edu.cn/jittor/images/download/qqgroup_qrcode.png" width="200"/>
+<img src="https://cg.cs.tsinghua.edu.cn/jittor/images/download/qqgroup_qrcode.jpg" width="200"/>
 
 ### The Team
 
