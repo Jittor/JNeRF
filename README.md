@@ -48,7 +48,7 @@ We use fox datasets and blender lego datasets for training demonstrations.
 We provided fox dataset in this repository at `./data/fox`.
 
 #### Lego Dataset
-You can download the blender dataset at https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1. And move `lego` folder to `./data/lego`.
+You can download the lego dataset in nerf_example_data.zip at https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1. And move `lego` folder to `./data/lego`.
 
 #### Customized Datasets
 
