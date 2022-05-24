@@ -69,7 +69,7 @@ python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py
 
 JNeRF-NGP(Instant-ngp implemented by JNeRF) achieves similar performance and speed to the paper. The performance comparison can be seen in the table below and training speed of JNeRF-NGP on RTX 3090 is about 133 iters/s. 
 
-JNeRF will support more valuable NeRF work in the future, if you are also interested in JNeRF and want to improve it, Please join us!
+JNeRF will support more valuable NeRF work in the future, if you are also interested in JNeRF and want to improve it, please join us!
 
 |    Models     |    implementation      | Dataset | PSNR |
 |----|---|---|---|
@@ -92,7 +92,7 @@ QQ Group: 761222083
 
 ## The Team
 
-JNeRF is currently maintained by the [Tsinghua CSCG Group](https://cg.cs.tsinghua.edu.cn/). If you are also interested in JNeRF and want to improve it, Please join us!
+JNeRF is currently maintained by the [Tsinghua CSCG Group](https://cg.cs.tsinghua.edu.cn/). If you are also interested in JNeRF and want to improve it, please join us!
 
 
 ## Citation
