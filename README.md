@@ -54,7 +54,7 @@ You can download the lego dataset in nerf_example_data.zip at https://drive.goog
 
 If you want to train JNerf with your own dataset, then you should follow the format of our datasets. You should split your datasets into training, validation and testing sets. Each set should be paired with a json file that describes the camera parameters of each images.
 
-### config
+### Config
 
 We organize our configs of JNeRF in projects/. You are referred to `./projects/ngp/configs/ngp_base.py` to learn how it works.
 
