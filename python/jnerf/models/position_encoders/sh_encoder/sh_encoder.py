@@ -3,11 +3,14 @@ import jittor as jt
 from jittor import Function
 import numpy as np
 from jnerf.ops.code_ops.global_vars import global_headers,proj_options
+from jnerf.utils.config import get_cfg
 from jnerf.utils.registry import ENCODERS
 
 @ENCODERS.register_module()
 class SHEncoder(Function):
-    def __init__(self,using_fp16=False) :
+    def __init__(self) :
+        self.cfg = get_cfg()
+        using_fp16 = self.cfg.fp16
         self.num_elements=4194304
         self.m_n_padded_output_dims=16
         self.m_sh_degree=4
@@ -18,6 +21,7 @@ class SHEncoder(Function):
             self.grad_type='float32'
         header_path = os.path.join(os.path.dirname(__file__), 'op_header')
         proj_options[f"FLAGS: -I{header_path}"]=1
+        self.out_dim=self.m_n_padded_output_dims
     
     def execute(self,x) :
         self.num_elements=x.shape[0]

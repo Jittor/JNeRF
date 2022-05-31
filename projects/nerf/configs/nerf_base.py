@@ -4,15 +4,16 @@ sampler = dict(
 )
 encoder = dict(
     pos_encoder = dict(
-        type='HashEncoder',
+        type='FrequencyEncoder',
+        multires=10,
     ),
     dir_encoder = dict(
-        type='SHEncoder',
+        type='FrequencyEncoder',
+        multires=4,
     ),
 )
 model = dict(
-    type='NGPNetworks',
-    use_fully=True,
+    type='OriginNeRFNetworks',
 )
 loss = dict(
     type='HuberLoss',
@@ -20,7 +21,7 @@ loss = dict(
 )
 optim = dict(
     type='Adam',
-    lr=1e-1,
+    lr=1e-2,
     eps=1e-15,
     betas=(0.9,0.99),
 )
@@ -62,12 +63,11 @@ dataset = dict(
 
 exp_name = "lego"
 log_dir = "./logs"
-tot_train_steps = 40000
+tot_train_steps = 200000
 background_color = [0, 0, 0]
-hash_func = "p0 ^ p1 * 19349663 ^ p2 * 83492791"
 cone_angle_constant = 0.00390625
 near_distance = 0.2
-n_rays_per_batch = 4096
+n_rays_per_batch = 1024
 n_training_steps = 16
 target_batch_size = 1<<18
 const_dt=True

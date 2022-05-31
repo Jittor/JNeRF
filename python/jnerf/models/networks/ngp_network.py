@@ -39,29 +39,30 @@ class FMLP(nn.Module):
 
 @NETWORKS.register_module()
 class NGPNetworks(nn.Module):
-    def __init__(self, use_fully=True, aabb_scale=1, density_hidden_layer=1, density_n_neurons=64, rgb_hidden_layer=2, rgb_n_neurons=64):
+    def __init__(self, use_fully=True, density_hidden_layer=1, density_n_neurons=64, rgb_hidden_layer=2, rgb_n_neurons=64):
         super(NGPNetworks, self).__init__()
         self.use_fully = use_fully
         self.cfg = get_cfg()
         self.using_fp16 = self.cfg.fp16
+        self.pos_encoder = build_from_cfg(self.cfg.encoder.pos_encoder, ENCODERS)
+        self.dir_encoder = build_from_cfg(self.cfg.encoder.dir_encoder, ENCODERS)
+
         if self.use_fully and jt.flags.cuda_archs[0] >= 70:
-            self.density_mlp = FMLP([32, density_n_neurons, 16])
-            self.rgb_mlp = FMLP([32, rgb_n_neurons, rgb_n_neurons, 3])
+            assert self.pos_encoder.out_dim%16==0
+            assert self.dir_encoder.out_dim%16==0
+            self.density_mlp = FMLP([self.pos_encoder.out_dim, density_n_neurons, 16])
+            self.rgb_mlp = FMLP([self.dir_encoder.out_dim+16, rgb_n_neurons, rgb_n_neurons, 3])
         else:
             self.density_mlp = nn.Sequential(
-                nn.Linear(32, density_n_neurons, bias=False), 
+                nn.Linear(self.pos_encoder.out_dim, density_n_neurons, bias=False), 
                 nn.ReLU(), 
                 nn.Linear(density_n_neurons, 16, bias=False))
-            self.rgb_mlp = nn.Sequential(nn.Linear(32, rgb_n_neurons, bias=False),
+            self.rgb_mlp = nn.Sequential(nn.Linear(self.dir_encoder.out_dim+16, rgb_n_neurons, bias=False),
                             nn.ReLU(),
                             nn.Linear(rgb_n_neurons, rgb_n_neurons, bias=False),
                             nn.ReLU(),
                             nn.Linear(rgb_n_neurons, 3, bias=False))
-
-        self.pos_encoder = build_from_cfg(self.cfg.encoder.pos_encoder, ENCODERS, aabb_scale=aabb_scale, using_fp16=self.using_fp16)
-        self.dir_encoder = build_from_cfg(self.cfg.encoder.dir_encoder, ENCODERS, using_fp16=self.using_fp16)
         self.set_fp16()
-        self.run_count = 0
 
     def execute(self, inputs):  # inputs:(batch_size,7)
         if self.using_fp16:
@@ -73,17 +74,19 @@ class NGPNetworks(nn.Module):
     def execute_(self, inputs):  # inputs:(batch_size,7)
         assert(inputs.shape[1] == 7)
         pos_t_input, dir_input = jt.split(inputs, [4, 3], dim=-1)
-        dir_input = self.dir_encoder(dir_input)  # batchsize,16
-        pos_t_input = self.pos_encoder(pos_t_input)  # (batchsize,32)
+        pos_t_input = pos_t_input[:,:3]
+        dir_input = self.dir_encoder(dir_input)
+        pos_t_input = self.pos_encoder(pos_t_input)
         density = self.density_mlp(pos_t_input)
-        rgb = jt.concat([density, dir_input], -1)  # batchsize,32
+        rgb = jt.concat([density, dir_input], -1)
         rgb = self.rgb_mlp(rgb)
         outputs = jt.concat([rgb, density[..., :1]], -1)  # batchsize 4: rgbd
         return outputs
 
     def density(self, inputs):  # batchsize,4
+        inputs = inputs[:,:3]
         density = self.pos_encoder(inputs)
-        density = self.density_mlp(density)
+        density = self.density_mlp(density)[:,:1]
         return density
 
     def set_fp16(self):

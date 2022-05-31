@@ -20,7 +20,7 @@ class Runner():
         self.cfg.dataset_obj    = self.dataset["train"]
         self.dataset["val"]     = build_from_cfg(self.cfg.dataset.val, DATASETS)
         self.dataset["test"]    = build_from_cfg(self.cfg.dataset.test, DATASETS)
-        self.model              = build_from_cfg(self.cfg.model, NETWORKS, aabb_scale = self.dataset["train"].aabb_scale)
+        self.model              = build_from_cfg(self.cfg.model, NETWORKS)
         self.cfg.model_obj      = self.model
         self.sampler            = build_from_cfg(self.cfg.sampler, SAMPLERS)
         self.cfg.sampler_obj    = self.sampler

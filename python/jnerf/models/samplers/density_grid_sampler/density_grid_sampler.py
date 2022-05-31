@@ -28,7 +28,6 @@ class DensityGirdSampler():
         self.near_distance = self.cfg.near_distance
         self.n_training_steps = self.cfg.n_training_steps
         self.target_batch_size = self.cfg.target_batch_size
-        self.hash_func = self.cfg.hash_func
         self.const_dt=self.cfg.const_dt
         self.NERF_CASCADES = 5
         self.NERF_GRIDSIZE = 128
@@ -47,7 +46,7 @@ class DensityGirdSampler():
         self.read_rgbs = 0
         self.n_rays_total = 0
         self.padded_output_width = 4
-        self.density_mlp_padded_density_output_width = 16  # TODO:check
+        self.density_mlp_padded_density_output_width = 1
         self.n_threads_linear = 128
         self.max_cascade = 0
         while (1 << self.max_cascade) < self.dataset.aabb_scale:
@@ -257,6 +256,7 @@ class DensityGirdSampler():
         else:
             self.update_density_grid_nerf(alpha, self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*self.NERF_GRIDSIZE *
                                           n_cascades//4, self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*n_cascades//4)
+        jt.gc()
 
     def update_batch_rays(self):
         measured_batch_size=self.measured_batch_size.item()/16
