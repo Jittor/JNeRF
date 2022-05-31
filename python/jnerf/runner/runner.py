@@ -50,8 +50,8 @@ class Runner():
 
             rgb_target = (rgb_target[..., :3] * rgb_target[..., 3:] + training_background_color * (1 - rgb_target[..., 3:])).detach()
 
-            coords = self.sampler.sample(img_ids, rays_o, rays_d, do_compact=True)
-            network_outputs = self.model(coords)
+            pos, dir = self.sampler.sample(img_ids, rays_o, rays_d, do_compact=True)
+            network_outputs = self.model(pos, dir)
             rgb = self.sampler.rays2rgb(network_outputs, training_background_color)
 
             loss = self.loss_func(rgb, rgb_target)
@@ -138,8 +138,8 @@ class Runner():
                 rays_d = jt.concat(
                     [rays_d, jt.ones([end-H*W]+rays_d.shape[1:], rays_d.dtype)], dim=0)
 
-            coords, rays_numsteps = self.sampler.sample(img_ids, rays_o, rays_d)
-            network_outputs = self.model(coords)
+            pos, dir = self.sampler.sample(img_ids, rays_o, rays_d)
+            network_outputs = self.model(pos, dir)
             rgb = self.sampler.rays2rgb(network_outputs, inference=True)
             imgs[pixel:end] = rgb.numpy()
         imgs = imgs[:H*W].reshape(H, W, 3)

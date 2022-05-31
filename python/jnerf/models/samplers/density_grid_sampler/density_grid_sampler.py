@@ -130,27 +130,30 @@ class DensityGirdSampler():
         coords, rays_index, rays_numsteps, rays_numsteps_counter = self.rays_sampler.execute(
             rays_o=rays_o, rays_d=rays_d, density_grid_bitfield=self.density_grid_bitfield,
             metadata=self.dataset.metadata, imgs_id=img_ids, xforms=self.dataset.transforms_gpu)
+        coords_pos = coords[...,  :3].detach()
+        coords_dir = coords[..., 4: ].detach()
         if not do_compact:
             self.coords = coords.detach()
             self.rays_numsteps = rays_numsteps.detach()
-            return coords.detach(), rays_numsteps.detach()
-        # print('coords', coords.sum())
+            return coords_pos, coords_dir
+
         if self.using_fp16:
             with jt.flag_scope(auto_mixed_precision_level=5):
-                nerf_outputs = self.model(coords).detach()
+                nerf_outputs = self.model(coords_pos, coords_dir).detach()
                 coords_compacted,rays_numsteps_compacted,compacted_numstep_counter=self.compacted_coords(nerf_outputs,coords,rays_numsteps)
                 self.measured_batch_size+=compacted_numstep_counter
         else:
-            nerf_outputs = self.model(coords).detach()
+            nerf_outputs = self.model(coords_pos, coords_dir).detach()
             coords_compacted,rays_numsteps_compacted,compacted_numstep_counter=self.compacted_coords(nerf_outputs,coords,rays_numsteps)
             self.measured_batch_size+=compacted_numstep_counter
         if do_compact:
             if self.cfg.m_training_step%self.update_den_freq==(self.update_den_freq-1):
                 self.update_batch_rays()
+        coords_compacted=coords_compacted.detach()
         self.coords = coords_compacted.detach()
         self.rays_numsteps = rays_numsteps.detach()
         self.rays_numsteps_compacted = rays_numsteps_compacted.detach()
-        return coords_compacted.detach()
+        return coords_compacted[..., :3].detach(), coords_compacted[..., 4:].detach()
     
     def rays2rgb(self, network_outputs, training_background_color=None, inference=False):
         if self.using_fp16:
@@ -213,8 +216,8 @@ class DensityGirdSampler():
         # print("density_grid_indices",self.density_grid_indices.numpy().sum())
         self.density_grid_positions = self.density_grid_positions.reshape(
             -1, 3)
-        self.density_grid_positions = jt.concat([self.density_grid_positions, jt.zeros(
-            self.density_grid_positions.shape[:-1]+[1])], dim=-1)
+        # self.density_grid_positions = jt.concat([self.density_grid_positions, jt.zeros(
+        #     self.density_grid_positions.shape[:-1]+[1])], dim=-1)
         # print("start density")
         if self.using_fp16:
             with jt.flag_scope(auto_mixed_precision_level=5):
@@ -236,12 +239,12 @@ class DensityGirdSampler():
             self.density_grid, self.density_grid_mean, self.density_grid_bitfield)
         # self.update_density_grid_mean_and_bitfield()
 
-    def update_density_grid_mean_and_bitfield(self):
+    # def update_density_grid_mean_and_bitfield(self):
 
-        self.density_grid_mean = jt.zeros_like(self.density_grid_mean)
+    #     self.density_grid_mean = jt.zeros_like(self.density_grid_mean)
 
-        self.density_grid_bitfield = self.update_bitfield.execute(
-            self.density_grid, self.density_grid_mean, self.density_grid_bitfield)
+    #     self.density_grid_bitfield = self.update_bitfield.execute(
+    #         self.density_grid, self.density_grid_mean, self.density_grid_bitfield)
 
     def div_round_up(self, val, divisor):
         return (val+divisor-1) // divisor

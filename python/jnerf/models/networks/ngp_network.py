@@ -64,28 +64,24 @@ class NGPNetworks(nn.Module):
                             nn.Linear(rgb_n_neurons, 3, bias=False))
         self.set_fp16()
 
-    def execute(self, inputs):  # inputs:(batch_size,7)
+    def execute(self, pos_input, dir_input):  
         if self.using_fp16:
             with jt.flag_scope(auto_mixed_precision_level=5):
-                return self.execute_(inputs)
+                return self.execute_(pos_input, dir_input)
         else:
-            return self.execute_(inputs)
+            return self.execute_(pos_input, dir_input)
 
-    def execute_(self, inputs):  # inputs:(batch_size,7)
-        assert(inputs.shape[1] == 7)
-        pos_t_input, dir_input = jt.split(inputs, [4, 3], dim=-1)
-        pos_t_input = pos_t_input[:,:3]
+    def execute_(self, pos_input, dir_input):  
         dir_input = self.dir_encoder(dir_input)
-        pos_t_input = self.pos_encoder(pos_t_input)
-        density = self.density_mlp(pos_t_input)
+        pos_input = self.pos_encoder(pos_input)
+        density = self.density_mlp(pos_input)
         rgb = jt.concat([density, dir_input], -1)
         rgb = self.rgb_mlp(rgb)
         outputs = jt.concat([rgb, density[..., :1]], -1)  # batchsize 4: rgbd
         return outputs
 
-    def density(self, inputs):  # batchsize,4
-        inputs = inputs[:,:3]
-        density = self.pos_encoder(inputs)
+    def density(self, pos_input):  # batchsize,3
+        density = self.pos_encoder(pos_input)
         density = self.density_mlp(density)[:,:1]
         return density
 
