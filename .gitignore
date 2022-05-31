@@ -1,5 +1,4 @@
 __pycache__/
-
-*.nvvp
 logs/
-my/
+data/
+!data/fox

@@ -114,23 +114,20 @@ class NerfDataset():
         self.load_data()
         jt.gc()
         self.image_data = self.image_data.reshape(
-            self.n_images, -1, 4).stop_grad()
+            self.n_images, -1, 4).detach()
 
     def __next__(self):
-        if self.idx_now+self.batch_size >= self.compacted_img_data.shape[0]:
-            rand_idx = jt.randperm(
-                self.compacted_img_data.shape[0])
-            self.compacted_img_data = self.compacted_img_data[
-                rand_idx]
-            self.idx_now = 0
-        data = self.compacted_img_data[self.idx_now:self.idx_now+self.batch_size]
+        if self.idx_now+self.batch_size >= self.shuffle_index.shape[0]:
+            print("shuffle!!!!")
+            del self.shuffle_index
+            self.shuffle_index=jt.randperm(self.n_images*self.H*self.W).detach()
+            jt.gc()
+            self.idx_now = 0      
+        img_index=self.shuffle_index[self.idx_now:self.idx_now+self.batch_size]
+        img_ids,rays_o,rays_d,rgb_target=self.generate_random_data(img_index,self.batch_size)
         self.idx_now+=self.batch_size
-
-        img_ids = data[..., 0].int()
-        rays_o = data[..., 8:11]
-        rays_d = data[..., 5:8]
-        rgb_target = data[..., 1:5]
         return img_ids, rays_o, rays_d, rgb_target
+        
         
     def load_data(self,root_dir=None):
         print(f"load {self.mode} data")
@@ -192,6 +189,7 @@ class NerfDataset():
                             self.matrix_nerf2ngp(matrix, self.scale, self.offset))
                            
         self.resolution=[self.W,self.H]
+        self.resolution_gpu=jt.array(self.resolution)
         metadata=np.empty([11],np.float32)
         metadata[0]=json_data.get('k1',0)
         metadata[1]=json_data.get('k2',0)
@@ -239,20 +237,28 @@ class NerfDataset():
         self.metadata=jt.array(self.metadata)
         if self.img_alpha and self.image_data.shape[-1]==3:
             self.image_data=jt.concat([self.image_data,jt.ones(self.image_data.shape[:-1]+(1,))],-1).stop_grad()
-        if self.preload_shuffle:
-            rays_o=[]
-            rays_d=[]
-            for img in range(self.n_images):
-                o,d=self.generate_rays_total(img,self.W,self.H)
-                o=o.repeat(self.H*self.W,1)
-                rays_o.append(o)
-                rays_d.append(d)
-            rays_d=jt.stack(rays_d).reshape(self.n_images,self.H,self.W,-1)
-            rays_o=jt.stack(rays_o).reshape(self.n_images,self.H,self.W,-1)
-            img_ids=jt.linspace(0,self.n_images-1,self.n_images).unsqueeze(-1).repeat(self.H*self.W).reshape(self.n_images,self.H,self.W,-1)
-            self.compacted_img_data=jt.concat([jt.array(img_ids),self.image_data,jt.array(rays_d),jt.array(rays_o)],-1).reshape(-1,11)
-            rand_idx = jt.randperm(self.compacted_img_data.shape[0])
-            self.compacted_img_data = self.compacted_img_data[rand_idx]
+        self.shuffle_index=jt.randperm(self.H*self.W*self.n_images).detach()
+        jt.gc()
+        jt.sync_all(True)
+
+        
+    def generate_random_data(self,index,bs):
+        img_id=index//(self.H*self.W)
+        img_offset=index%(self.H*self.W)
+        focal_length =self.focal_lengths[img_id]
+        xforms = self.transforms_gpu[img_id]
+        principal_point = self.metadata[:, 4:6][img_id]
+        xforms=xforms.permute(0,2,1)
+        rays_o = xforms[...,  3]
+        res = self.resolution_gpu
+        x=((img_offset%self.W)+0.5)/self.W
+        y=((img_offset//self.W)+0.5)/self.H
+        xy=jt.stack([x,y],dim=-1)
+        rays_d = jt.concat([(xy-principal_point)* res/focal_length, jt.ones([bs, 1])], dim=-1)
+        rays_d = jt.normalize(xforms[ ...,  :3].matmul(rays_d.unsqueeze(2)))
+        rays_d=rays_d.squeeze(-1)
+        rgb_tar=self.image_data.reshape(-1,4)[index]
+        return img_id,rays_o,rays_d,rgb_tar
 
     def generate_rays_total(self, img_id,H,W):
         H=int(H)

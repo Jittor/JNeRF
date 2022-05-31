@@ -19,7 +19,7 @@ class Runner():
         self.dataset["train"]   = build_from_cfg(self.cfg.dataset.train, DATASETS)
         self.cfg.dataset_obj    = self.dataset["train"]
         self.dataset["val"]     = build_from_cfg(self.cfg.dataset.val, DATASETS)
-        self.dataset["test"]    = build_from_cfg(self.cfg.dataset.test, DATASETS)
+        self.dataset["test"]    = None
         self.model              = build_from_cfg(self.cfg.model, NETWORKS)
         self.cfg.model_obj      = self.model
         self.sampler            = build_from_cfg(self.cfg.sampler, SAMPLERS)
@@ -66,6 +66,8 @@ class Runner():
         self.test()
     
     def test(self):
+        if self.dataset["test"]  is None:
+            self.dataset["test"]    = build_from_cfg(self.cfg.dataset.test, DATASETS)
         if not os.path.exists(os.path.join(self.save_path, "test")):
             os.makedirs(os.path.join(self.save_path, "test"))
         mse_list=self.render_test(save_path=os.path.join(self.save_path, "test"))
@@ -141,7 +143,7 @@ class Runner():
             rgb = self.sampler.rays2rgb(network_outputs, inference=True)
             imgs[pixel:end] = rgb.numpy()
         imgs = imgs[:H*W].reshape(H, W, 3)
-        imgs_tar=self.dataset[dataset_mode].image_data[img_id].reshape(H, W, 4)
+        imgs_tar=jt.array(self.dataset[dataset_mode].image_data[img_id]).reshape(H, W, 4)
         imgs_tar = imgs_tar[..., :3] * imgs_tar[..., 3:] + jt.array(self.background_color) * (1 - imgs_tar[..., 3:])
         imgs_tar = imgs_tar.detach().numpy()
         return imgs, imgs_tar
