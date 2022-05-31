@@ -118,7 +118,6 @@ class NerfDataset():
 
     def __next__(self):
         if self.idx_now+self.batch_size >= self.shuffle_index.shape[0]:
-            print("shuffle!!!!")
             del self.shuffle_index
             self.shuffle_index=jt.randperm(self.n_images*self.H*self.W).detach()
             jt.gc()
@@ -127,7 +126,6 @@ class NerfDataset():
         img_ids,rays_o,rays_d,rgb_target=self.generate_random_data(img_index,self.batch_size)
         self.idx_now+=self.batch_size
         return img_ids, rays_o, rays_d, rgb_target
-        
         
     def load_data(self,root_dir=None):
         print(f"load {self.mode} data")
@@ -239,9 +237,7 @@ class NerfDataset():
             self.image_data=jt.concat([self.image_data,jt.ones(self.image_data.shape[:-1]+(1,))],-1).stop_grad()
         self.shuffle_index=jt.randperm(self.H*self.W*self.n_images).detach()
         jt.gc()
-        jt.sync_all(True)
-
-        
+    
     def generate_random_data(self,index,bs):
         img_id=index//(self.H*self.W)
         img_offset=index%(self.H*self.W)
