@@ -66,11 +66,9 @@ class GridEncode(Function):
         proj_options[f"FLAGS: -I{header_path}"]=1
 
     def execute(self, x,m_grid):
-        # print("encoder !!!")
         self.num_elements=x.shape[0]
         assert(m_grid.dtype==self.grad_type)
         assert(self.m_encoded_positions.dtype==self.grad_type)
-        # print(self.num_elements)
         # if self.m_positions.shape[0]<self.num_elements*self.N_POS_DIMS:
         #     enlarge(self.m_positions,self.num_elements*self.N_POS_DIMS)
         #     enlarge(self.m_encoded_positions,self.num_elements*self.m_n_features*2)

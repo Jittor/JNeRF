@@ -212,13 +212,8 @@ class DensityGirdSampler():
             [density_grid_positions_uniform, density_grid_positions_nonuniform])
         self.density_grid_indices = jt.concat(
             [density_grid_indices_uniform, density_grid_indices_nonuniform])
-        # print("density_grid_positions",self.density_grid_positions.numpy().sum())
-        # print("density_grid_indices",self.density_grid_indices.numpy().sum())
         self.density_grid_positions = self.density_grid_positions.reshape(
             -1, 3)
-        # self.density_grid_positions = jt.concat([self.density_grid_positions, jt.zeros(
-        #     self.density_grid_positions.shape[:-1]+[1])], dim=-1)
-        # print("start density")
         if self.using_fp16:
             with jt.flag_scope(auto_mixed_precision_level=5):
                 self.mlp_out = self.model.density(self.density_grid_positions)
@@ -237,21 +232,12 @@ class DensityGirdSampler():
         self.density_grid_mean = jt.zeros_like(self.density_grid_mean)
         self.density_grid_bitfield ,self.density_grid_mean= self.update_bitfield.execute(
             self.density_grid, self.density_grid_mean, self.density_grid_bitfield)
-        # self.update_density_grid_mean_and_bitfield()
-
-    # def update_density_grid_mean_and_bitfield(self):
-
-    #     self.density_grid_mean = jt.zeros_like(self.density_grid_mean)
-
-    #     self.density_grid_bitfield = self.update_bitfield.execute(
-    #         self.density_grid, self.density_grid_mean, self.density_grid_bitfield)
 
     def div_round_up(self, val, divisor):
         return (val+divisor-1) // divisor
 
     def update_density_grid(self):
         alpha = pow(self.density_grid_decay, self.n_training_steps / 16)
-        # print("alpha", alpha)
         n_cascades = self.max_cascade+1
         if self.cfg.m_training_step < 256:
             self.update_density_grid_nerf(
@@ -263,10 +249,8 @@ class DensityGirdSampler():
 
     def update_batch_rays(self):
         measured_batch_size=self.measured_batch_size.item()/16
-        # print("measured_batch_size",measured_batch_size)
         rays_per_batch=int(self.n_rays_per_batch*self.target_batch_size/measured_batch_size)
         self.n_rays_per_batch=int(min(self.div_round_up(int(rays_per_batch),128)*128,self.target_batch_size))
-        # print("self.n_rays_per_batch",self.n_rays_per_batch)
         jt.init.zero_(self.measured_batch_size)
         self.dataset.batch_size=self.n_rays_per_batch
 

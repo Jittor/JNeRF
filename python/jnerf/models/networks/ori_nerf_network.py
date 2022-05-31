@@ -27,17 +27,14 @@ class OriginNeRFNetworks(nn.Module):
         self.rgb_linear = nn.Linear(W//2, 3)
         self.set_fp16()
 
-    def execute(self, inputs):  # inputs:(batch_size,7)
+    def execute(self, pos_input, dir_input):  
         if self.using_fp16:
             with jt.flag_scope(auto_mixed_precision_level=5):
-                return self.execute_(inputs)
+                return self.execute_(pos_input, dir_input)
         else:
-            return self.execute_(inputs)
+            return self.execute_(pos_input, dir_input)
 
-    def execute_(self, inputs):  # inputs:(batch_size,7)
-        assert(inputs.shape[1] == 7)
-        pos_input, dir_input = jt.split(inputs, [4, 3], dim=-1)
-        pos_input = pos_input[:,:3]
+    def execute_(self, pos_input, dir_input):   
         dir_input = self.dir_encoder(dir_input)
         pos_input = self.pos_encoder(pos_input)
 
@@ -59,9 +56,8 @@ class OriginNeRFNetworks(nn.Module):
         
         return outputs
 
-    def density(self, inputs):  # batchsize,4
-        inputs = inputs[:,:3]
-        pos_input = self.pos_encoder(inputs)
+    def density(self, pos_input):  
+        pos_input = self.pos_encoder(pos_input)
         h = pos_input
         for i, l in enumerate(self.pts_linears):
             h = self.pts_linears[i](h)
