@@ -22,6 +22,11 @@ JNeRF environment requirements:
     * nvcc (>=10.0 for g++ or >=10.2 for clang)
 * GPU library: cudnn-dev (recommend tar file installation, [reference link](https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#installlinux-tar))
 
+* GPU supporting:
+  * sm arch >= sm_61 (GTX 10x0 / TITAN Xp and above)
+  * to use FullyFusedMLP: sm arch >= sm_75 (RTX 20x0 and above). 
+    JNeRF will use original MLPs if the requirements are not meet.
+
 **Step 1: Install the requirements**
 ```shell
 sudo apt-get install tcl-dev tk-dev python3-tk
