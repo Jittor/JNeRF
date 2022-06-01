@@ -34,7 +34,7 @@ class DensityGirdSampler():
         self.NERF_RENDERING_NEAR_DISTANCE = 0.05
         self.NERF_MIN_OPTICAL_THICKNESS = 0.01
         self.MAX_STEP = 1024
-        self.background_color   = self.cfg.background_color
+        self.background_color = self.cfg.background_color
 
         self.n_images = self.dataset.n_images
         self.image_resolutions = self.dataset.resolution
@@ -122,8 +122,8 @@ class DensityGirdSampler():
 
         self.measured_batch_size=jt.zeros([1],'int32')##rays batch sum
 
-    def sample(self, img_ids, rays_o, rays_d, rgb_target=None, do_compact=False):
-        if do_compact:
+    def sample(self, img_ids, rays_o, rays_d, rgb_target=None, is_training=False):
+        if is_training:
             if self.cfg.m_training_step%self.update_den_freq==0:
                 self.update_density_grid()
 
@@ -132,7 +132,7 @@ class DensityGirdSampler():
             metadata=self.dataset.metadata, imgs_id=img_ids, xforms=self.dataset.transforms_gpu)
         coords_pos = coords[...,  :3].detach()
         coords_dir = coords[..., 4: ].detach()
-        if not do_compact:
+        if not is_training:
             self.coords = coords.detach()
             self.rays_numsteps = rays_numsteps.detach()
             return coords_pos, coords_dir
@@ -146,7 +146,7 @@ class DensityGirdSampler():
             nerf_outputs = self.model(coords_pos, coords_dir).detach()
             coords_compacted,rays_numsteps_compacted,compacted_numstep_counter=self.compacted_coords(nerf_outputs,coords,rays_numsteps)
             self.measured_batch_size+=compacted_numstep_counter
-        if do_compact:
+        if is_training:
             if self.cfg.m_training_step%self.update_den_freq==(self.update_den_freq-1):
                 self.update_batch_rays()
         coords_compacted=coords_compacted.detach()

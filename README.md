@@ -64,6 +64,9 @@ Train and test on `lego` scene are combined in a single command. It should be no
 ```shell
 python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py
 ```
+### GPU Supporting
+
+JNeRF must run on GPU with sm arch no less than sm_61 (GTX 10x0 and above). If you want to enable FullyFusedMLP, then the sm arch of the GPU must be no less than sm_75(RTX 20x0 and above). JNeRF will use original MLPs if the requirements are not meet.
 
 ## Performance
 
