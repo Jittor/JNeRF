@@ -14,9 +14,7 @@ jt.flags.use_cuda = 1
 
 
 def main():
-    if jt.flags.cuda_archs[0] < 61:
-        print("!!Failed:SM ARCH VERSION TOO LOW!! SM ARCH VERSION MUST BIGGER THAN sm_61!!")
-        return
+    assert jt.flags.cuda_archs[0] >= 61, "!!Failed:SM ARCH VERSION TOO LOW!! SM ARCH VERSION MUST BIGGER THAN sm_61!!"
     parser = argparse.ArgumentParser(description="Jittor Object Detection Training")
     parser.add_argument(
         "--config-file",
