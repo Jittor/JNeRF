@@ -50,7 +50,7 @@ class Runner():
 
             rgb_target = (rgb_target[..., :3] * rgb_target[..., 3:] + training_background_color * (1 - rgb_target[..., 3:])).detach()
 
-            pos, dir = self.sampler.sample(img_ids, rays_o, rays_d, do_compact=True)
+            pos, dir = self.sampler.sample(img_ids, rays_o, rays_d, is_training=True)
             network_outputs = self.model(pos, dir)
             rgb = self.sampler.rays2rgb(network_outputs, training_background_color)
 
