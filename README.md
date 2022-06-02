@@ -68,6 +68,7 @@ Train and test on `lego` scene are combined in a single command. It should be no
 ```shell
 python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py
 ```
+NOTE: Competitors participating in the Jittor AI Challenge can use `./projects/ngp/configs/ngp_comp.py` as config.
 
 ## Performance
 
@@ -113,7 +114,7 @@ QQ Group: 761222083
 
 ## Acknowledgements
 
-The original implementation learns from the following cool project:
+The original implementation comes from the following cool project:
 * [Instant-NGP](https://github.com/NVlabs/instant-ngp)
 * [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
 * [Eigne](https://github.com/Tom94/eigen) ([homepage](https://eigen.tuxfamily.org/index.php?title=Main_Page))
