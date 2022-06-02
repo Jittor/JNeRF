@@ -1,4 +1,3 @@
-     
 /*
  * Tiny self-contained version of the PCG Random Number Generation for C++
  * put together from pieces of the much larger C/C++ codebase.
@@ -26,6 +25,7 @@
  *
  * Note: This code was modified by the JNeRF authors.
  */
+ 
  #pragma once
 
 #define TCNN_HOST_DEVICE __host__ __device__
