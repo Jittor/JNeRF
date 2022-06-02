@@ -54,7 +54,7 @@ class NGPNetworks(nn.Module):
             self.rgb_mlp = FMLP([self.dir_encoder.out_dim+16, rgb_n_neurons, rgb_n_neurons, 3])
         else:
             if self.use_fully:
-                print("Warning: Sm arch is too low. Automatically use original MLPs instead.")
+                print("Warning: Sm arch is lower than sm_75, FFMLPs is not supported. Automatically use original MLPs instead.")
             self.density_mlp = nn.Sequential(
                 nn.Linear(self.pos_encoder.out_dim, density_n_neurons, bias=False), 
                 nn.ReLU(), 
