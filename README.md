@@ -113,10 +113,10 @@ QQ Group: 761222083
 
 ## Acknowledgements
 
-Our repo used following cool open source repositories:
+The original implementation comes from the following cool project:
 * [Instant-NGP](https://github.com/NVlabs/instant-ngp)
 * [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
-* [Engine](https://github.com/Tom94/eigen) ([homepage](https://eigen.tuxfamily.org/index.php?title=Main_Page))
+* [Eigne](https://github.com/Tom94/eigen) ([homepage](https://eigen.tuxfamily.org/index.php?title=Main_Page))
 
 Their licenses can be seen at `licenses/`, many thanks for their nice work!
 
