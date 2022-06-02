@@ -85,7 +85,7 @@ def write_image(file, img, quality=95):
 
 @DATASETS.register_module()
 class NerfDataset():
-    def __init__(self,root_dir, batch_size, mode='train', H=0, W=0, correct_pose=[1,-1,-1], aabb_scale=None, offset=None, img_alpha=True,to_jt=True, have_img=True, preload_shuffle=True):
+    def __init__(self,root_dir, batch_size, mode='train', H=0, W=0, correct_pose=[1,-1,-1], aabb_scale=None, scale=None, offset=None, img_alpha=True,to_jt=True, have_img=True, preload_shuffle=True):
         self.root_dir=root_dir
         self.batch_size=batch_size
         self.preload_shuffle=preload_shuffle
@@ -93,7 +93,10 @@ class NerfDataset():
         self.W=W
         self.correct_pose = correct_pose
         self.aabb_scale = aabb_scale
-        self.scale=0
+        if scale is None:
+            self.scale = NERF_SCALE
+        else:
+            self.scale = scale
         if offset is None:
             self.offset=[0.5,0.5,0.5]
         else:
@@ -150,7 +153,6 @@ class NerfDataset():
                 json_data['frames']+=data['frames']
 
         ## init set  scale & offset
-        self.scale = NERF_SCALE
         if 'h' in json_data:
             self.H=json_data['h']
         if 'w' in json_data:
