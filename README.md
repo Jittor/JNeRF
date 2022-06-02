@@ -113,7 +113,7 @@ QQ Group: 761222083
 
 ## Acknowledgements
 
-The original implementation comes from the following cool project:
+The original implementation learns from the following cool project:
 * [Instant-NGP](https://github.com/NVlabs/instant-ngp)
 * [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
 * [Eigne](https://github.com/Tom94/eigen) ([homepage](https://eigen.tuxfamily.org/index.php?title=Main_Page))
