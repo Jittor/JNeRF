@@ -47,7 +47,7 @@ class NGPNetworks(nn.Module):
         self.pos_encoder = build_from_cfg(self.cfg.encoder.pos_encoder, ENCODERS)
         self.dir_encoder = build_from_cfg(self.cfg.encoder.dir_encoder, ENCODERS)
 
-        if self.use_fully and jt.flags.cuda_archs[0] >= 70:
+        if self.use_fully and jt.flags.cuda_archs[0] >= 75:
             assert self.pos_encoder.out_dim%16==0
             assert self.dir_encoder.out_dim%16==0
             self.density_mlp = FMLP([self.pos_encoder.out_dim, density_n_neurons, 16])
