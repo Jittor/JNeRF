@@ -49,7 +49,7 @@ source ~/.bashrc
 We use fox datasets and blender lego datasets for training demonstrations. 
 
 #### Fox Dataset
-We provided fox dataset in this repository at `./data/fox`.
+We provided fox dataset (from [Instant-NGP](https://github.com/NVlabs/instant-ngp)) in this repository at `./data/fox`.
 
 #### Lego Dataset
 You can download the lego dataset in nerf_example_data.zip at https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1. And move `lego` folder to `./data/lego`.
@@ -110,6 +110,15 @@ File an issue: https://github.com/Jittor/jittor/issues
 QQ Group: 761222083
 
 <img src="docs/qrcode.jpg" width="200"/>
+
+## Acknowledgements
+
+Our repo used following cool open source repositories:
+* [Instant-NGP](https://github.com/NVlabs/instant-ngp)
+* [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+* [Engine](https://github.com/Tom94/eigen) ([homepage](https://eigen.tuxfamily.org/index.php?title=Main_Page))
+
+Their licenses can be seen at `licenses/`, many thanks for their nice work!
 
 
 ## Citation
