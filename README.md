@@ -104,13 +104,17 @@ JNeRF will support more valuable NeRF models in the future, if you are also inte
 
 ## Contact Us
 
+If you are interested in JNeRF or NeRF research and want to build the JNeRF community with us, contributing is very welcome, please contact us! 
+
 Email: jittor@qq.com
 
-File an issue: https://github.com/Jittor/jittor/issues
+JNeRF QQ Group: 689063884
 
-QQ Group: 761222083
+<img src="docs/jnerf_qrcode.jpg" width="200"/>
 
-<img src="docs/qrcode.jpg" width="200"/>
+If you have any questions about Jittor, you can [file an issue](https://github.com/Jittor/jittor/issues), or join our Jittor QQ Group: 761222083
+
+<img src="docs/jittor_qrcode.jpg" width="200"/>
 
 ## Acknowledgements
 
