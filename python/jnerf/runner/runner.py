@@ -21,7 +21,10 @@ class Runner():
         self.dataset = {}
         self.dataset["train"]   = build_from_cfg(self.cfg.dataset.train, DATASETS)
         self.cfg.dataset_obj    = self.dataset["train"]
-        self.dataset["val"]     = build_from_cfg(self.cfg.dataset.val, DATASETS)
+        if self.cfg.dataset.val:
+            self.dataset["val"] = build_from_cfg(self.cfg.dataset.val, DATASETS)
+        else:
+            self.dataset["val"] = self.dataset["train"]
         self.dataset["test"]    = None
         self.model              = build_from_cfg(self.cfg.model, NETWORKS)
         self.cfg.model_obj      = self.model
