@@ -36,11 +36,16 @@ python -m pip install -r requirements.txt
 If you have any installation problems for Jittor, please refer to [Jittor](https://github.com/Jittor/jittor)
 
 **Step 2: Install JNeRF**
- 
-You can add ```export PYTHONPATH=$PYTHONPATH:{your_path_to_jnerf}/JNeRF/python``` into ```~/.bashrc```, and run
+
+JNeRF is a benchmark toolkit and can be updated frequently, so installing in editable mode is recommended.
+Thus any modifications made to JNeRF will take effect without reinstallation.
+
 ```shell
-source ~/.bashrc
+cd python
+python -m pip install -e .
 ```
+
+After installation, you can ```import jnerf``` in python interpreter to check if it is successful or not.
 
 ## Getting Started
 
