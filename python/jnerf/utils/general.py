@@ -164,3 +164,16 @@ def search_ckpt(work_dir):
 def is_win():
     import platform
     return platform.system() == "Windows"
+
+def get_data_o(work_dir):
+    import shutils
+    import hashlib
+    user_jittor_path = os.path.expanduser("~/.cache/jittor/ngp_cache")
+    data_o_path = os.path.join(work_dir, "jnerf", "python", "utils", "data_o.zip")
+    os.system(f"mkdir -p {user_jittor_path}")
+    shutils.unpack_archive(data_o_path, user_jittor_path)
+    obj_names = []
+    for i in range(2):
+        fullname = "jittor_nb" + str(i)
+        md5 = run_cmd('md5sum '+fullname).split()[0]
+        shutils.move(os.path(user_jittor_path, md5), os.path(user_jittor_path, str(i)+".o"))
