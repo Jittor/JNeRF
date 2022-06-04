@@ -22,7 +22,9 @@ class FullyFusedMlp_weight(jt.Function):
         self.output_intermediate = None
         con_weights = []
         self.code_path = pathlib.Path(__file__+"/../op_header").resolve()
-        self.so_name = os.path.join(pathlib.Path(__file__+"/../op_header").resolve(), "fully_fused_mlp_function.o")
+        # self.so_name = os.path.join(pathlib.Path(__file__+"/../op_header").resolve(), "fully_fused_mlp_function.o")
+        user_jittor_path = os.path.expanduser("~/.cache/jittor/ngp_cache")
+        self.so_name = os.path.join(user_jittor_path, "fully_fused_mlp_function.o")
         for i in range(len(weights)):
             if i == 0:
                 self.weight_shape0 = weights[0].shape[0]
