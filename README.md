@@ -121,7 +121,7 @@ If you have any questions about Jittor, you can [file an issue](https://github.c
 The original implementation comes from the following cool project:
 * [Instant-NGP](https://github.com/NVlabs/instant-ngp)
 * [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
-* [Eigne](https://github.com/Tom94/eigen) ([homepage](https://eigen.tuxfamily.org/index.php?title=Main_Page))
+* [Eigen](https://github.com/Tom94/eigen) ([homepage](https://eigen.tuxfamily.org/index.php?title=Main_Page))
 
 Their licenses can be seen at `licenses/`, many thanks for their nice work!
 
