@@ -53,7 +53,7 @@ dataset = dict(
     ),
 )
 
-exp_name = "lego"
+exp_name = "fox"
 log_dir = "./logs"
 tot_train_steps = 80000
 # Background color, value range from 0 to 1
