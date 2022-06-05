@@ -152,4 +152,5 @@ class Runner():
         imgs_tar=jt.array(self.dataset[dataset_mode].image_data[img_id]).reshape(H, W, 4)
         imgs_tar = imgs_tar[..., :3] * imgs_tar[..., 3:] + jt.array(self.background_color) * (1 - imgs_tar[..., 3:])
         imgs_tar = imgs_tar.detach().numpy()
+        jt.gc()
         return imgs, imgs_tar

@@ -53,9 +53,9 @@ dataset = dict(
     ),
 )
 
-exp_name = "lego"
+exp_name = "fox"
 log_dir = "./logs"
-tot_train_steps = 80000
+tot_train_steps = 40000
 # Background color, value range from 0 to 1
 background_color = [0, 0, 0]
 # Hash encoding function used in Instant-NGP
@@ -68,6 +68,6 @@ n_training_steps = 16
 target_batch_size = 1<<18
 # Set const_dt=True for higher performance
 # Set const_dt=False for faster convergence
-const_dt=True
+const_dt=False
 # Use fp16 for faster training
 fp16 = True
