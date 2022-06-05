@@ -58,12 +58,6 @@ def read_image(file):
             img = np.frombuffer(bytes, dtype=np.float16, count=h*w*4, offset=8).astype(np.float32).reshape([h, w, 4])
     else:
         img = jt.array(read_image_imageio(file))
-        # if img.shape[2] == 4:
-        #     img[...,0:3] = jt_srgb_to_linear(img[...,0:3])
-        #     # Premultiply alpha
-        #     img[...,0:3] *= img[...,3:4]
-        # else:
-        #     img = jt_srgb_to_linear(img)
     return img.numpy()
 
 def write_image(file, img, quality=95):
@@ -107,7 +101,7 @@ class NerfDataset():
         self.image_data=[]
         self.focal_lengths=[]
         self.n_images=0
-        self.img_alpha=img_alpha## img RGBA or RGB
+        self.img_alpha=img_alpha# img RGBA or RGB
         self.to_jt=to_jt
         self.have_img=have_img
         self.compacted_img_data=[]# img_id ,rgba,ray_d,ray_o
@@ -170,16 +164,9 @@ class NerfDataset():
                     if not os.path.exists(img_path):
                         continue
                 img = read_image(img_path)
-                # img = cv2.imread(img_path,cv2.IMREAD_UNCHANGED)
                 if self.H==0 or self.W==0:
                     self.H=img.shape[0]
                     self.W=img.shape[1]
-                # if img.shape[-1]==3:
-                #     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                # else:
-                #     img=cv2.cvtColor(img,cv2.COLOR_BGRA2RGBA)
-                # img=img.astype(np.float32)/255
-                # print("img1",img.shape,img.max())
                 self.image_data.append(img)
             else:
                 self.image_data.append(np.zeros((self.H,self.W,3)))
