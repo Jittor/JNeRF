@@ -47,14 +47,16 @@ class NGPNetworks(nn.Module):
         self.pos_encoder = build_from_cfg(self.cfg.encoder.pos_encoder, ENCODERS)
         self.dir_encoder = build_from_cfg(self.cfg.encoder.dir_encoder, ENCODERS)
 
-        if self.use_fully and jt.flags.cuda_archs[0] >= 75:
+        if self.use_fully and jt.flags.cuda_archs[0] >= 75 and self.using_fp16:
             assert self.pos_encoder.out_dim%16==0
             assert self.dir_encoder.out_dim%16==0
             self.density_mlp = FMLP([self.pos_encoder.out_dim, density_n_neurons, 16])
             self.rgb_mlp = FMLP([self.dir_encoder.out_dim+16, rgb_n_neurons, rgb_n_neurons, 3])
         else:
-            if self.use_fully:
+            if self.use_fully and not (jt.flags.cuda_archs[0] >= 75):
                 print("Warning: Sm arch is lower than sm_75, FFMLPs is not supported. Automatically use original MLPs instead.")
+            elif not self.using_fp16:
+                print("Warning: FFMLPs only support float16. Automatically use original MLPs instead.")
             self.density_mlp = nn.Sequential(
                 nn.Linear(self.pos_encoder.out_dim, density_n_neurons, bias=False), 
                 nn.ReLU(), 
