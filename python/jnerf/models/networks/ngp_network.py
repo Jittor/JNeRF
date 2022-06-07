@@ -55,7 +55,7 @@ class NGPNetworks(nn.Module):
         else:
             if self.use_fully and not (jt.flags.cuda_archs[0] >= 75):
                 print("Warning: Sm arch is lower than sm_75, FFMLPs is not supported. Automatically use original MLPs instead.")
-            elif not self.using_fp16:
+            elif self.use_fully and not self.using_fp16:
                 print("Warning: FFMLPs only support float16. Automatically use original MLPs instead.")
             self.density_mlp = nn.Sequential(
                 nn.Linear(self.pos_encoder.out_dim, density_n_neurons, bias=False), 
