@@ -14,8 +14,9 @@ from jnerf.utils.registry import SAMPLERS
 from jnerf.ops.code_ops.global_vars import global_headers, proj_options
 
 @SAMPLERS.register_module()
-class DensityGirdSampler():
+class DensityGirdSampler(nn.Module):
     def __init__(self, update_den_freq=16):
+        super(DensityGirdSampler, self).__init__()
         self.cfg = get_cfg()
         self.model = self.cfg.model_obj
         self.dataset = self.cfg.dataset_obj
@@ -62,17 +63,17 @@ class DensityGirdSampler():
         self.density_grid = jt.zeros([self.density_n_elements], 'float32')
         self.density_grid_tmp = jt.zeros(
             [self.density_n_elements], 'float32')
-        self.density_grid_indices = jt.zeros(
+        self._density_grid_indices = jt.zeros(
             [self.density_n_elements], 'int32')
 
-        self.mlp_out = jt.empty([1])
+        self._mlp_out = jt.empty([1])
         self.size_including_mips = self.NERF_GRIDSIZE * \
             self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*self.NERF_CASCADES//8
         self.density_grid_bitfield_n_elements = self.NERF_GRIDSIZE * \
             self.NERF_GRIDSIZE*self.NERF_GRIDSIZE
         self.density_grid_bitfield = jt.zeros(
             [self.size_including_mips], 'uint8')
-        self.density_grid_positions = jt.empty([1])
+        self._density_grid_positions = jt.empty([1])
         self.density_grid_mean = jt.zeros([self.div_round_up(
             self.density_grid_bitfield_n_elements, self.n_threads_linear)])
         # self.density_grid_ema_step = 0
@@ -133,8 +134,8 @@ class DensityGirdSampler():
         coords_pos = coords[...,  :3].detach()
         coords_dir = coords[..., 4: ].detach()
         if not is_training:
-            self.coords = coords.detach()
-            self.rays_numsteps = rays_numsteps.detach()
+            self._coords = coords.detach()
+            self._rays_numsteps = rays_numsteps.detach()
             return coords_pos, coords_dir
 
         if self.using_fp16:
@@ -150,9 +151,9 @@ class DensityGirdSampler():
             if self.cfg.m_training_step%self.update_den_freq==(self.update_den_freq-1):
                 self.update_batch_rays()
         coords_compacted=coords_compacted.detach()
-        self.coords = coords_compacted.detach()
-        self.rays_numsteps = rays_numsteps.detach()
-        self.rays_numsteps_compacted = rays_numsteps_compacted.detach()
+        self._coords = coords_compacted.detach()
+        self._rays_numsteps = rays_numsteps.detach()
+        self._rays_numsteps_compacted = rays_numsteps_compacted.detach()
         return coords_compacted[..., :3].detach(), coords_compacted[..., 4:].detach()
     
     def rays2rgb(self, network_outputs, training_background_color=None, inference=False):
@@ -167,20 +168,20 @@ class DensityGirdSampler():
             background_color = self.background_color
         else:
             background_color = training_background_color
-        assert network_outputs.shape[0]==self.coords.shape[0]
+        assert network_outputs.shape[0]==self._coords.shape[0]
         if inference:
             return self.calc_rgb.inference(
                 network_outputs, 
-                self.coords, 
-                self.rays_numsteps,
+                self._coords, 
+                self._rays_numsteps,
                 self.density_grid_mean)
         else:
             return self.calc_rgb(
                 network_outputs,
-                self.coords,
-                self.rays_numsteps,
+                self._coords,
+                self._rays_numsteps,
                 self.density_grid_mean,
-                self.rays_numsteps_compacted,
+                self._rays_numsteps_compacted,
                 background_color
             )
 
@@ -193,9 +194,9 @@ class DensityGirdSampler():
         n_elements = self.density_n_elements
         n_density_grid_samples = n_uniform_density_grid_samples + \
             n_nonuniform_density_grid_samples
-        self.enlarge(self.density_grid_positions, n_density_grid_samples)
+        self.enlarge(self._density_grid_positions, n_density_grid_samples)
         padded_output_width = self.density_mlp_padded_density_output_width
-        self.enlarge(self.mlp_out, n_density_grid_samples*padded_output_width)
+        self.enlarge(self._mlp_out, n_density_grid_samples*padded_output_width)
         if self.cfg.m_training_step == 0:
             if not self.dataset_ray_data:
                 self.density_grid = self.mark_untrained_density_grid(
@@ -208,20 +209,20 @@ class DensityGirdSampler():
             self.density_grid, n_uniform_density_grid_samples, self.density_grid_ema_step, self.max_cascade, -0.01)
         density_grid_positions_nonuniform, density_grid_indices_nonuniform = self.generate_grid_samples_nerf_nonuniform.execute(
             self.density_grid, n_nonuniform_density_grid_samples, self.density_grid_ema_step, self.max_cascade, self.NERF_MIN_OPTICAL_THICKNESS)
-        self.density_grid_positions = jt.concat(
+        self._density_grid_positions = jt.concat(
             [density_grid_positions_uniform, density_grid_positions_nonuniform])
-        self.density_grid_indices = jt.concat(
+        self._density_grid_indices = jt.concat(
             [density_grid_indices_uniform, density_grid_indices_nonuniform])
-        self.density_grid_positions = self.density_grid_positions.reshape(
+        self._density_grid_positions = self._density_grid_positions.reshape(
             -1, 3)
         if self.using_fp16:
             with jt.flag_scope(auto_mixed_precision_level=5):
-                self.mlp_out = self.model.density(self.density_grid_positions)
+                self._mlp_out = self.model.density(self._density_grid_positions)
         else:
-            self.mlp_out = self.model.density(self.density_grid_positions)
+            self._mlp_out = self.model.density(self._density_grid_positions)
       
         self.density_grid_tmp = self.splat_grid_samples_nerf_max_nearest_neighbor.execute(
-            self.density_grid_indices, self.mlp_out, self.density_grid_tmp, n_density_grid_samples)
+            self._density_grid_indices, self._mlp_out, self.density_grid_tmp, n_density_grid_samples)
   
         self.density_grid = self.ema_grid_samples_nerf.execute(
              self.density_grid_tmp, self.density_grid, n_elements)

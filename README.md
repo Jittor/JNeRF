@@ -67,13 +67,20 @@ If you want to train JNerf with your own dataset, then you should follow the for
 
 We organize our configs of JNeRF in projects/. You are referred to `./projects/ngp/configs/ngp_base.py` to learn how it works.
 
-### Train & Test
+### Train from scratch
 
-Train and test on `lego` scene are combined in a single command. It should be noted that since jittor is a just-in-time compilation framework, it will take some time to compile on the first run.
+You can train from scratch on the `lego` scene with the following command. It should be noted that since jittor is a just-in-time compilation framework, it will take some time to compile on the first run.
 ```shell
 python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py
 ```
 NOTE: Competitors participating in the Jittor AI Challenge can use `./projects/ngp/configs/ngp_comp.py` as config.
+
+### Test with pre-trained model
+
+After training, the ckpt file `params.pkl` will be automatically saved in `./logs/lego/`. You can test the pre-trained model with the following command.
+```shell
+python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --mode test --ckpt_path ./logs/lego/params.pkl
+```
 
 ## Performance
 

@@ -17,8 +17,8 @@ class Runner():
             self.cfg.fp16 = False
         if not os.path.exists(self.cfg.log_dir):
             os.makedirs(self.cfg.log_dir)
-        self.exp_name = self.cfg.exp_name
-        self.dataset = {}
+        self.exp_name           = self.cfg.exp_name
+        self.dataset            = {}
         self.dataset["train"]   = build_from_cfg(self.cfg.dataset.train, DATASETS)
         self.cfg.dataset_obj    = self.dataset["train"]
         if self.cfg.dataset.val:
@@ -33,17 +33,17 @@ class Runner():
         self.optimizer          = build_from_cfg(self.cfg.optim, OPTIMS, params=self.model.parameters())
         self.optimizer          = build_from_cfg(self.cfg.expdecay, OPTIMS, nested_optimizer=self.optimizer)
         self.ema_optimizer      = build_from_cfg(self.cfg.ema, OPTIMS, params=self.model.parameters())
-        self.loss_func              = build_from_cfg(self.cfg.loss, LOSSES)
+        self.loss_func          = build_from_cfg(self.cfg.loss, LOSSES)
         self.background_color   = self.cfg.background_color
         self.tot_train_steps    = self.cfg.tot_train_steps
+        self.n_rays_per_batch   = self.cfg.n_rays_per_batch
+        self.using_fp16         = self.cfg.fp16
+        self.save_path          = os.path.join(self.cfg.log_dir, self.exp_name)
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path)
 
         self.cfg.m_training_step = 0
         self.val_freq = 4096
-        self.n_rays_per_batch = self.cfg.n_rays_per_batch
-        self.using_fp16 = self.cfg.fp16
-        self.save_path=os.path.join(self.cfg.log_dir, self.exp_name)
-        if not os.path.exists(self.save_path):
-            os.makedirs(self.save_path)
         self.image_resolutions = self.dataset["train"].resolution
         self.W = self.image_resolutions[0]
         self.H = self.image_resolutions[1]
@@ -69,9 +69,15 @@ class Runner():
             if i>0 and i%self.val_freq==0:
                 psnr=mse2psnr(self.val_img(i))
                 print("STEP={} | LOSS={} | VAL PSNR={}".format(i,loss.mean().item(), psnr))
+        self.save_ckpt(os.path.join(self.save_path, "params.pkl"))
         self.test()
     
-    def test(self):
+    def test(self, load_ckpt=False, ckpt_path=None):
+        if load_ckpt:
+            if ckpt_path is None or ckpt_path=="":
+                ckpt_path = os.path.join(self.save_path, "params.pkl")
+            assert os.path.exists(ckpt_path), "ckpt file does not exist: "+ckpt_path
+            self.load_ckpt(ckpt_path)
         if self.dataset["test"]  is None:
             self.dataset["test"]    = build_from_cfg(self.cfg.dataset.test, DATASETS)
         if not os.path.exists(os.path.join(self.save_path, "test")):
@@ -82,6 +88,20 @@ class Runner():
             for mse in mse_list:
                 tot_psnr += mse2psnr(mse)
             print("TOTAL TEST PSNR===={}".format(tot_psnr/len(mse_list)))
+
+    def save_ckpt(self, path):
+        jt.save({
+            'model': self.model.state_dict(),
+            'sampler': self.sampler.state_dict(),
+        }, path)
+
+    def load_ckpt(self, path):
+        print("Loading ckpt from:",path)
+        ckpt = jt.load(path)
+        self.model.load_state_dict(ckpt['model'])
+        self.sampler.load_state_dict(ckpt['sampler'])
+        if self.using_fp16:
+            self.model.set_fp16()
         
     def val_img(self, iter):
         with jt.no_grad():
