@@ -79,6 +79,6 @@ const_dt=True
 # Use fp16 for faster training
 fp16 = True
 # Load pre-trained model
-load_ckpt = True
+load_ckpt = False
 # path of checkpoint file, None for default path
 ckpt_path = None
