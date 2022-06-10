@@ -30,11 +30,6 @@ def main():
         type=str,
     )
     parser.add_argument(
-        "--ckpt_path",
-        default="",
-        type=str,
-    )
-    parser.add_argument(
         "--save_dir",
         default="logs",
         type=str,
@@ -51,7 +46,7 @@ def main():
     if args.task == "train":
         runner.train()
     elif args.task == "test":
-        runner.test(True, args.ckpt_path)
+        runner.test(True)
     elif args.task == "render":
         print("TODO: render video with a specified camera path")
         runner.render_all(True, args.save_dir)

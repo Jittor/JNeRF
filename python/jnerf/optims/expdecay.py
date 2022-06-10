@@ -7,7 +7,7 @@ from jnerf.utils.config import init_cfg
 class ExpDecay(jt.nn.Optimizer):
     def __init__(self,nested_optimizer:jt.nn.Optimizer,decay_start:int,decay_interval:int,decay_base:float,decay_end:int=None):
         self.base_lr=nested_optimizer.lr
-        self.nested_optimizer=nested_optimizer
+        self._nested_optimizer=nested_optimizer
         self.decay_start=decay_start
         self.decay_interval=decay_interval
         self.decay_base=decay_base
@@ -20,11 +20,11 @@ class ExpDecay(jt.nn.Optimizer):
     def step(self, loss=None):
         if self.steps>=self.decay_start and (self.steps-self.decay_start)%self.decay_interval==0 and self.steps<=self.decay_end:
             self.m_learning_rate_factor*=self.decay_base
-        self.nested_optimizer.lr=self.base_lr*self.m_learning_rate_factor
-        self.nested_optimizer.step(loss)
+        self._nested_optimizer.lr=self.base_lr*self.m_learning_rate_factor
+        self._nested_optimizer.step(loss)
         self.steps += 1
     def zero_grad(self):
-        return self.nested_optimizer.zero_grad()
+        return self._nested_optimizer.zero_grad()
     
     def backward(self, loss, retain_graph=False):
-        return self.nested_optimizer.backward(loss, retain_graph)
+        return self._nested_optimizer.backward(loss, retain_graph)

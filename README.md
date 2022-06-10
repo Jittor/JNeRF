@@ -77,9 +77,11 @@ NOTE: Competitors participating in the Jittor AI Challenge can use `./projects/n
 
 ### Test with pre-trained model
 
-After training, the ckpt file `params.pkl` will be automatically saved in `./logs/lego/`. You can test the pre-trained model with the following command.
+After training, the ckpt file `params.pkl` will be automatically saved in `./logs/lego/`. And you can modify the ckpt file path by setting the `ckpt_path` in the config file. 
+
+Set the `--mode` of the command to `test` to test with pre-trained model:
 ```shell
-python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --mode test --ckpt_path ./logs/lego/params.pkl
+python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --mode test
 ```
 
 ## Performance

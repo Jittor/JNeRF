@@ -78,3 +78,7 @@ target_batch_size = 1<<18
 const_dt=True
 # Use fp16 for faster training
 fp16 = True
+# Load pre-trained model
+load_ckpt = True
+# path of checkpoint file, None for default path
+ckpt_path = None

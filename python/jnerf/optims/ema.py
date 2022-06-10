@@ -16,6 +16,12 @@ class EMA(jt.nn.Optimizer):
             for p in pg["params"]:
                 values.append(p.copy())
 
+    @property
+    def defaults(self):
+        exclude = set(("defaults", "n_step", "pre_step", "step"))
+        return { k:v for k, v in self.__dict__.items()
+            if k[0] != '_' and k not in exclude and not callable(v) }
+            
     def ema_step(self, loss=None):
         assert(loss is None)
         self.steps += 1

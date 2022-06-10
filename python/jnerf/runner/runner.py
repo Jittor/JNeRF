@@ -41,6 +41,14 @@ class Runner():
         self.save_path          = os.path.join(self.cfg.log_dir, self.exp_name)
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
+        if self.cfg.ckpt_path and self.cfg.ckpt_path is not None:
+            self.ckpt_path = self.cfg.ckpt_path
+        else:
+            self.ckpt_path = os.path.join(self.save_path, "params.pkl")
+        if self.cfg.load_ckpt:
+            self.load_ckpt(self.ckpt_path)
+        else:
+            self.start=0
 
         self.cfg.m_training_step = 0
         self.val_freq = 4096
@@ -49,7 +57,7 @@ class Runner():
         self.H = self.image_resolutions[1]
 
     def train(self):
-        for i in tqdm(range(self.tot_train_steps)):
+        for i in tqdm(range(self.start, self.tot_train_steps)):
             self.cfg.m_training_step = i
             img_ids, rays_o, rays_d, rgb_target = next(self.dataset["train"])
             training_background_color = jt.random([rgb_target.shape[0],3]).stop_grad()
@@ -72,12 +80,10 @@ class Runner():
         self.save_ckpt(os.path.join(self.save_path, "params.pkl"))
         self.test()
     
-    def test(self, load_ckpt=False, ckpt_path=None):
+    def test(self, load_ckpt=False):
         if load_ckpt:
-            if ckpt_path is None or ckpt_path=="":
-                ckpt_path = os.path.join(self.save_path, "params.pkl")
-            assert os.path.exists(ckpt_path), "ckpt file does not exist: "+ckpt_path
-            self.load_ckpt(ckpt_path)
+            assert os.path.exists(self.ckpt_path), "ckpt file does not exist: "+self.ckpt_path
+            self.load_ckpt(self.ckpt_path)
         if self.dataset["test"]  is None:
             self.dataset["test"]    = build_from_cfg(self.cfg.dataset.test, DATASETS)
         if not os.path.exists(os.path.join(self.save_path, "test")):
@@ -91,17 +97,33 @@ class Runner():
 
     def save_ckpt(self, path):
         jt.save({
+            'global_step': self.cfg.m_training_step,
             'model': self.model.state_dict(),
             'sampler': self.sampler.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'nested_optimizer': self.optimizer._nested_optimizer.state_dict(),
+            'ema_optimizer': self.ema_optimizer.state_dict(),
         }, path)
 
     def load_ckpt(self, path):
         print("Loading ckpt from:",path)
         ckpt = jt.load(path)
+        self.start = ckpt['global_step']
         self.model.load_state_dict(ckpt['model'])
-        self.sampler.load_state_dict(ckpt['sampler'])
         if self.using_fp16:
             self.model.set_fp16()
+        self.sampler.load_state_dict(ckpt['sampler'])
+        self.optimizer.load_state_dict(ckpt['optimizer'])
+        nested=ckpt['nested_optimizer']['defaults']['param_groups'][0]
+        for pg in self.optimizer._nested_optimizer.param_groups:
+            for i in range(len(pg["params"])):
+                pg["values"][i]=jt.array(nested["values"][i])
+                pg["m"][i]=jt.array(nested["m"][i])
+        ema=ckpt['ema_optimizer']['defaults']['param_groups'][0]
+        for pg in self.ema_optimizer.param_groups:
+            for i in range(len(pg["params"])):
+                pg["values"][i]=jt.array(ema["values"][i])
+        self.ema_optimizer.steps=ckpt['ema_optimizer']['defaults']['steps']
         
     def val_img(self, iter):
         with jt.no_grad():
