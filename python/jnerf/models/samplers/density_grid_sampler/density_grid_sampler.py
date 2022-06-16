@@ -14,13 +14,14 @@ from jnerf.utils.registry import SAMPLERS
 from jnerf.ops.code_ops.global_vars import global_headers, proj_options
 
 @SAMPLERS.register_module()
-class DensityGirdSampler(nn.Module):
-    def __init__(self, update_den_freq=16):
-        super(DensityGirdSampler, self).__init__()
+class DensityGridSampler(nn.Module):
+    def __init__(self, update_den_freq=16, update_block_size=5000000):
+        super(DensityGridSampler, self).__init__()
         self.cfg = get_cfg()
         self.model = self.cfg.model_obj
         self.dataset = self.cfg.dataset_obj
         self.update_den_freq = update_den_freq
+        self.update_block_size = update_block_size
         
         # NERF const param
         self.n_rays_per_batch = self.cfg.n_rays_per_batch  # 4096
@@ -125,7 +126,7 @@ class DensityGirdSampler(nn.Module):
 
     def sample(self, img_ids, rays_o, rays_d, rgb_target=None, is_training=False):
         if is_training:
-            if self.cfg.m_training_step%self.update_den_freq==0:
+            if self.cfg.m_training_step>0 and self.cfg.m_training_step%self.update_den_freq==0:
                 self.update_density_grid()
 
         coords, rays_index, rays_numsteps, rays_numsteps_counter = self.rays_sampler.execute(
@@ -215,12 +216,16 @@ class DensityGirdSampler(nn.Module):
             [density_grid_indices_uniform, density_grid_indices_nonuniform])
         self._density_grid_positions = self._density_grid_positions.reshape(
             -1, 3)
-        if self.using_fp16:
-            with jt.flag_scope(auto_mixed_precision_level=5):
-                self._mlp_out = self.model.density(self._density_grid_positions)
-        else:
-            self._mlp_out = self.model.density(self._density_grid_positions)
-      
+        with jt.no_grad():
+            bs = self.update_block_size
+            res=[]
+            for i in range(0,self._density_grid_positions.shape[0],bs):
+                if self.using_fp16:
+                    with jt.flag_scope(auto_mixed_precision_level=5):
+                        res.append(self.model.density(self._density_grid_positions[i:i+bs]))
+                else:
+                    res.append(self.model.density(self._density_grid_positions[i:i+bs]))
+            self._mlp_out = jt.concat(res,0)
         self.density_grid_tmp = self.splat_grid_samples_nerf_max_nearest_neighbor.execute(
             self._density_grid_indices, self._mlp_out, self.density_grid_tmp, n_density_grid_samples)
   
@@ -245,11 +250,11 @@ class DensityGirdSampler(nn.Module):
                 alpha, self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*n_cascades, 0)
         else:
             self.update_density_grid_nerf(alpha, self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*self.NERF_GRIDSIZE *
-                                          n_cascades//4, self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*n_cascades//4)
+                                        n_cascades//4, self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*n_cascades//4)
         jt.gc()
 
     def update_batch_rays(self):
-        measured_batch_size=self.measured_batch_size.item()/16
+        measured_batch_size=max(self.measured_batch_size.item()/16,1)
         rays_per_batch=int(self.n_rays_per_batch*self.target_batch_size/measured_batch_size)
         self.n_rays_per_batch=int(min(self.div_round_up(int(rays_per_batch),128)*128,self.target_batch_size))
         jt.init.zero_(self.measured_batch_size)

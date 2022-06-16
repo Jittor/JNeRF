@@ -1,5 +1,5 @@
 sampler = dict(
-    type='DensityGirdSampler',
+    type='DensityGridSampler',
     update_den_freq=16,
 )
 encoder = dict(
@@ -42,20 +42,20 @@ dataset = dict(
     train=dict(
         type=dataset_type,
         root_dir=dataset_dir,
-        batch_size=4096,
+        batch_size=512,
         mode='train',
     ),
     val=dict(
         type=dataset_type,
         root_dir=dataset_dir,
-        batch_size=4096,
+        batch_size=512,
         mode='val',
         preload_shuffle=False,
     ),
     test=dict(
         type=dataset_type,
         root_dir=dataset_dir,
-        batch_size=4096,
+        batch_size=512,
         mode='test',
         preload_shuffle=False,
     ),
@@ -68,7 +68,7 @@ tot_train_steps = 200000
 background_color = [0, 0, 0]
 cone_angle_constant = 0.00390625
 near_distance = 0.2
-n_rays_per_batch = 1024
+n_rays_per_batch = 512
 n_training_steps = 16
 # Expected number of sampling points per batch
 target_batch_size = 1<<18

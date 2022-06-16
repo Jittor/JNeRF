@@ -26,7 +26,7 @@ class GridEncode(Function):
             scale = jt.pow(2, (i*jt.log2(m_per_level_scale).item())
                            ) * base_resolution - 1.0
             resolution = (jt.ceil(scale)).item() + 1
-            params_in_level = jt.pow(int(resolution), int(n_pos_dims)).item()
+            params_in_level = int(resolution)**int(n_pos_dims)
             params_in_level = self.div_round_up(params_in_level, 8, int)*8
             params_in_level = np.minimum(
                 params_in_level, (1 << log2_hashmap_size)).item()
@@ -38,7 +38,6 @@ class GridEncode(Function):
         self.m_hashmap_offsets_table = jt.empty([n_levels+1], 'int32')
         for i in range(m_n_levels+1):
             self.m_hashmap_offsets_table[i] = offsets_table_host[i]
-        # self.m_grid = jt.empty([m_n_params], 'float')
         self.N_POS_DIMS = n_pos_dims
         self.N_FEATURES_PER_LEVEL = n_features_per_level
         self.m_n_features = n_features
@@ -69,9 +68,6 @@ class GridEncode(Function):
         self.num_elements=x.shape[0]
         assert(m_grid.dtype==self.grad_type)
         assert(self.m_encoded_positions.dtype==self.grad_type)
-        # if self.m_positions.shape[0]<self.num_elements*self.N_POS_DIMS:
-        #     enlarge(self.m_positions,self.num_elements*self.N_POS_DIMS)
-        #     enlarge(self.m_encoded_positions,self.num_elements*self.m_n_features*2)
         output = jt.empty([self.num_elements,32], self.grad_type)
         output,self.m_positions,self.m_encoded_positions = jt.code([ self.m_hashmap_offsets_table, x, m_grid],[output,self.m_positions,self.m_encoded_positions], 
         cuda_header=self.hash_func_header+'#include "HashEncode.h"', cuda_src=f"""

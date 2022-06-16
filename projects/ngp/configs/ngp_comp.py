@@ -1,5 +1,5 @@
 sampler = dict(
-    type='DensityGirdSampler',
+    type='DensityGridSampler',
     update_den_freq=16,
 )
 encoder = dict(
