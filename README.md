@@ -79,9 +79,9 @@ NOTE: Competitors participating in the Jittor AI Challenge can use `./projects/n
 
 After training, the ckpt file `params.pkl` will be automatically saved in `./logs/lego/`. And you can modify the ckpt file path by setting the `ckpt_path` in the config file. 
 
-Set the `--mode` of the command to `test` to test with pre-trained model:
+Set the `--task` of the command to `test` to test with pre-trained model:
 ```shell
-python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --mode test
+python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --task test
 ```
 
 ## Performance
