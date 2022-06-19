@@ -187,7 +187,7 @@ class NerfDataset():
             matrix=np.array(frame['transform_matrix'],np.float32)[:-1, :]
             self.transforms_gpu.append(
                             self.matrix_nerf2ngp(matrix, self.scale, self.offset))
-            break
+
         self.resolution=[self.W,self.H]
         self.resolution_gpu=jt.array(self.resolution)
         metadata=np.empty([11],np.float32)

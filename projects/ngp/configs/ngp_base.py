@@ -12,7 +12,7 @@ encoder = dict(
 )
 model = dict(
     type='NGPNetworks',
-    use_fully=True,
+    use_fully=False,
 )
 loss = dict(
     type='HuberLoss',
