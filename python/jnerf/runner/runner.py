@@ -148,7 +148,8 @@ class Runner():
                 img = np.stack(imgs, axis=0).mean(0)
                 if save_img:
                     self.save_img(save_path+f"/{self.exp_name}_r_{img_i}.png", img)
-                    self.save_img(save_path+f"/{self.exp_name}_gt_{img_i}.png", img_tar)
+                    if self.dataset["test"].have_img:
+                        self.save_img(save_path+f"/{self.exp_name}_gt_{img_i}.png", img_tar)
                 mse_list.append(img2mse(
                 jt.array(img), 
                 jt.array(img_tar)).item())
