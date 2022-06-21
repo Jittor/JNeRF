@@ -3,7 +3,8 @@ from jittor import nn
 import os
 import pathlib
 import numpy as np
-from jnerf.ops.code_ops.global_vars import global_headers, proj_options
+import jittor_utils
+from jnerf.ops.code_ops.global_vars import global_headers, proj_options, ngp_suffix, fn_mapping
 
 cuda_header = '''
 #include "fully_fused_mlp_header.h"
@@ -22,9 +23,8 @@ class FullyFusedMlp_weight(jt.Function):
         self.output_intermediate = None
         con_weights = []
         self.code_path = pathlib.Path(__file__+"/../op_header").resolve()
-        # self.so_name = os.path.join(pathlib.Path(__file__+"/../op_header").resolve(), "fully_fused_mlp_function.o")
-        user_jittor_path = os.path.expanduser("~/.cache/jittor/ngp_cache")
-        self.so_name = os.path.join(user_jittor_path, "fully_fused_mlp_function.o")
+        user_jittor_path = os.path.join(jittor_utils.cache_path, "ngp_cache")
+        self.so_name = os.path.join(user_jittor_path, fn_mapping["fm"]+ngp_suffix)
         for i in range(len(weights)):
             if i == 0:
                 self.weight_shape0 = weights[0].shape[0]

@@ -165,20 +165,13 @@ def is_win():
     import platform
     return platform.system() == "Windows"
 
-def get_data_o():
+def get_data():
     import shutil
     import pathlib
     import jnerf
+    import jittor_utils
     work_dir = pathlib.Path(jnerf.__file__+"/../").resolve()
-    user_jittor_path = os.path.expanduser("~/.cache/jittor/ngp_cache")
-    data_o_path = os.path.join(work_dir, "utils", "data_o.zip")
+    user_jittor_path = os.path.join(jittor_utils.cache_path, "ngp_cache")
+    data_o_path = os.path.join(work_dir, "utils", "data.zip")
     os.system(f"mkdir -p {user_jittor_path}")
-    print(user_jittor_path)
-    print(data_o_path)
     shutil.unpack_archive(data_o_path, user_jittor_path)
-    # TODO: rename the filename??
-    # obj_names = []
-    # for i in range(2):
-    #     fullname = "jittor_nb" + str(i)
-    #     md5 = os.popen(f'echo -n {fullname} | md5sum ').read().split()[0]
-    #     os.rename(os.path(user_jittor_path, md5), os.path(user_jittor_path, str(i)+".o"))
