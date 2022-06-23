@@ -84,6 +84,13 @@ Set the `--task` of the command to `test` to test with pre-trained model:
 python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --task test
 ```
 
+### Render demo video
+
+Set the `--task` of the command to `render` to render demo video `demo.mp4` with specified camera path based on pre-trained model:
+```shell
+python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --task render
+```
+
 ## Performance
 
 Instant-ngp implemented by JNeRF achieves similar performance and speed to the paper. The performance comparison can be seen in the table below and training speed of JNeRF-NGP on RTX 3090 is about 133 iters/s. 
@@ -104,7 +111,8 @@ JNeRF will support more valuable NeRF models in the future, if you are also inte
 - :heavy_check_mark: Instant-NGP
 - :heavy_check_mark: NeRF
 - :clock3: Mip-NeRF
-- :heavy_plus_sign: Plenoxels
+- :clock3: PaletteNeRF
+- :clock3: Plenoxels
 - :heavy_plus_sign: StylizedNeRF
 - :heavy_plus_sign: NeRF-Editing
 - :heavy_plus_sign: DrawingInStyles
