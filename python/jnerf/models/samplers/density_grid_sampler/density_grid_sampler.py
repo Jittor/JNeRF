@@ -50,6 +50,12 @@ class DensityGridSampler(nn.Module):
         self.padded_output_width = 4
         self.density_mlp_padded_density_output_width = 1
         self.n_threads_linear = 128
+
+        # check aabb_scale
+        max_aabb_scale = 1 << (self.NERF_CASCADES - 1)
+        assert self.dataset.aabb_scale <= max_aabb_scale,f'''NeRF dataset's aabb_scale must <= {max_aabb_scale},
+        but now is {self.dataset.aabb_scale}. You can increase this max_aabb_scale limit by factors of 2 by incrementing NERF_CASCADES.'''
+        
         self.max_cascade = 0
         while (1 << self.max_cascade) < self.dataset.aabb_scale:
             self.max_cascade += 1
