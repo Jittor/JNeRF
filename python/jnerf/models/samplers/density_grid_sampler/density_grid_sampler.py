@@ -126,7 +126,7 @@ class DensityGridSampler(nn.Module):
 
     def sample(self, img_ids, rays_o, rays_d, rgb_target=None, is_training=False):
         if is_training:
-            if self.cfg.m_training_step>0 and self.cfg.m_training_step%self.update_den_freq==0:
+            if self.cfg.m_training_step%self.update_den_freq==0:
                 self.update_density_grid()
 
         coords, rays_index, rays_numsteps, rays_numsteps_counter = self.rays_sampler.execute(
