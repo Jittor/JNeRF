@@ -31,7 +31,7 @@ def main():
     )
     parser.add_argument(
         "--save_dir",
-        default="logs",
+        default="",
         type=str,
     )
     
@@ -48,8 +48,7 @@ def main():
     elif args.task == "test":
         runner.test(True)
     elif args.task == "render":
-        print("TODO: render video with a specified camera path")
-        runner.render_all(True, args.save_dir)
+        runner.render(True, args.save_dir)
     
 if __name__ == "__main__":
     main()

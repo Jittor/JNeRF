@@ -290,6 +290,25 @@ class NerfDataset():
         rays_pix = ((xy_int[:, 1]) * H+(xy_int[:, 0])).int()
         # rays origin /dir   rays hit point offset
         return rays_o, rays_d, rays_pix
+    
+    def generate_rays_with_pose(self, pose, H, W):
+        nray = H*W
+        pose = self.matrix_nerf2ngp(pose, self.scale, self.offset)
+        focal_length = self.focal_lengths[:1].expand(nray, -1)
+        xforms = pose.unsqueeze(0).expand(nray, -1, -1)
+        principal_point = self.metadata[:1, 4:6].expand(nray, -1)
+        xy = jt.stack(jt.meshgrid((jt.linspace(0, H-1, H)+0.5)/H, (jt.linspace(0,
+                      W-1, W)+0.5)/W), dim=-1).permute(1, 0, 2).reshape(-1, 2)
+        xy_int = jt.stack(jt.meshgrid(jt.linspace(
+            0, H-1, H), jt.linspace(0, W-1, W)), dim=-1).permute(1, 0, 2).reshape(-1, 2)
+        rays_o = xforms[:, :, 3]
+        res = jt.array(self.resolution)
+        rays_d = jt.concat([
+            (xy-principal_point) * res/focal_length, 
+            jt.ones([H*W, 1])
+        ], dim=-1)
+        rays_d = jt.normalize(xforms[:, :, :3].matmul(rays_d.unsqueeze(2)))
+        return rays_o, rays_d
 
     def matrix_nerf2ngp(self, matrix, scale, offset):
         matrix[:, 0] *= self.correct_pose[0]

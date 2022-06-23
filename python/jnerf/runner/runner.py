@@ -8,6 +8,8 @@ from jnerf.dataset.dataset import jt_srgb_to_linear, jt_linear_to_srgb
 from jnerf.utils.config import get_cfg, save_cfg
 from jnerf.utils.registry import build_from_cfg,NETWORKS,SCHEDULERS,DATASETS,OPTIMS,SAMPLERS,LOSSES
 from jnerf.models.losses.mse_loss import img2mse, mse2psnr
+from jnerf.dataset import camera_path
+import cv2
 
 class Runner():
     def __init__(self):
@@ -84,8 +86,8 @@ class Runner():
         if load_ckpt:
             assert os.path.exists(self.ckpt_path), "ckpt file does not exist: "+self.ckpt_path
             self.load_ckpt(self.ckpt_path)
-        if self.dataset["test"]  is None:
-            self.dataset["test"]    = build_from_cfg(self.cfg.dataset.test, DATASETS)
+        if self.dataset["test"] is None:
+            self.dataset["test"] = build_from_cfg(self.cfg.dataset.test, DATASETS)
         if not os.path.exists(os.path.join(self.save_path, "test")):
             os.makedirs(os.path.join(self.save_path, "test"))
         mse_list=self.render_test(save_path=os.path.join(self.save_path, "test"))
@@ -95,6 +97,28 @@ class Runner():
                 tot_psnr += mse2psnr(mse)
             print("TOTAL TEST PSNR===={}".format(tot_psnr/len(mse_list)))
 
+    def render(self, load_ckpt=True, save_path=None):
+        if load_ckpt:
+            assert os.path.exists(self.ckpt_path), "ckpt file does not exist: "+self.ckpt_path
+            self.load_ckpt(self.ckpt_path)
+        if save_path is None or save_path=="":
+            save_path = os.path.join(self.save_path, "demo.mp4")
+        else:
+            assert save_path.endswith(".mp4"), "suffix of save_path need to be .mp4"
+        print("rendering video with specified camera path")
+        fps = 28
+        W, H = self.image_resolutions
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        videowriter = cv2.VideoWriter(save_path, fourcc, fps, (W, H))
+        cam_path = camera_path.path_spherical()
+
+        for pose in tqdm(cam_path):
+            img = self.render_img_with_pose(pose)
+            img = (img*255+0.5).clip(0, 255).astype('uint8')
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            videowriter.write(img)
+        videowriter.release()
+        
     def save_ckpt(self, path):
         jt.save({
             'global_step': self.cfg.m_training_step,
@@ -197,3 +221,26 @@ class Runner():
         imgs_tar = imgs_tar.detach().numpy()
         jt.gc()
         return imgs, imgs_tar
+
+    def render_img_with_pose(self, pose):
+        W, H = self.image_resolutions
+        H = int(H)
+        W = int(W)
+        fake_img_ids = jt.zeros([H*W], 'int32')
+        rays_o_total, rays_d_total = self.dataset["train"].generate_rays_with_pose(pose, W, H)
+        img = np.empty([H*W+self.n_rays_per_batch, 3])
+        for pixel in range(0, W*H, self.n_rays_per_batch):
+            end = pixel+self.n_rays_per_batch
+            rays_o = rays_o_total[pixel:end]
+            rays_d = rays_d_total[pixel:end]
+            if end > H*W:
+                rays_o = jt.concat(
+                    [rays_o, jt.ones([end-H*W]+rays_o.shape[1:], rays_o.dtype)], dim=0)
+                rays_d = jt.concat(
+                    [rays_d, jt.ones([end-H*W]+rays_d.shape[1:], rays_d.dtype)], dim=0)
+            pos, dir = self.sampler.sample(fake_img_ids, rays_o, rays_d)
+            network_outputs = self.model(pos, dir)
+            rgb = self.sampler.rays2rgb(network_outputs, inference=True)
+            img[pixel:end] = rgb.numpy()
+        img = img[:H*W].reshape(H, W, 3)
+        return img
