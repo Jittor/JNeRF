@@ -148,9 +148,9 @@ class NerfDataset():
 
         ## init set  scale & offset
         if 'h' in json_data:
-            self.H=json_data['h']
+            self.H=int(json_data['h'])
         if 'w' in json_data:
-            self.W=json_data['w']
+            self.W=int(json_data['w'])
 
         frames=json_data['frames']
         if self.mode=="val":
@@ -165,8 +165,8 @@ class NerfDataset():
                         continue
                 img = read_image(img_path)
                 if self.H==0 or self.W==0:
-                    self.H=img.shape[0]
-                    self.W=img.shape[1]
+                    self.H=int(img.shape[0])
+                    self.W=int(img.shape[1])
                 self.image_data.append(img)
             else:
                 self.image_data.append(np.zeros((self.H,self.W,3)))
