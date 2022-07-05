@@ -29,7 +29,8 @@ using namespace Eigen;
 
 #define TCNN_HOST_DEVICE __host__ __device__
 #define TCNN_MIN_GPU_ARCH 70
-
+#define rgb_length 3
+typedef Array<float, rgb_length, 1> RGBArray;
 static constexpr float UNIFORM_SAMPLING_FRACTION = 0.5f;
 constexpr uint32_t n_threads_linear = 128;
 
@@ -915,12 +916,13 @@ inline __device__ float network_to_rgb(float val, ENerfActivation activation)
 	return 0.0f;
 }
 template <typename T>
-inline __device__ Array3f network_to_rgb(const vector_t<T, 4> &local_network_output, ENerfActivation activation)
+inline __device__ RGBArray network_to_rgb(const vector_t<T, rgb_length+1> &local_network_output, ENerfActivation activation)
 {
-	return {
-		network_to_rgb(float(local_network_output[0]), activation),
-		network_to_rgb(float(local_network_output[1]), activation),
-		network_to_rgb(float(local_network_output[2]), activation)};
+	RGBArray rgb;
+	for(int i=0;i<rgb_length;i++) {
+		rgb[i] = network_to_rgb(float(local_network_output[i]), activation);
+	}
+	return rgb;
 }
 
 inline __device__ float network_to_density(float val, ENerfActivation activation)

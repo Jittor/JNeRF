@@ -12,7 +12,7 @@ encoder = dict(
 )
 model = dict(
     type='NGPNetworks',
-    use_fully=False,
+    use_fully=True,
 )
 loss = dict(
     type='HuberLoss',
@@ -36,7 +36,7 @@ expdecay=dict(
     decay_end=None
 )
 dataset_type = 'NerfDataset'
-dataset_dir = '/home/penghy/nerf_data/nerf_synthetic/lego'
+dataset_dir = 'data/lego'
 dataset = dict(
     train=dict(
         type=dataset_type,
@@ -78,3 +78,4 @@ target_batch_size = 1<<18
 const_dt=True
 # Use fp16 for faster training
 fp16 = True
+rgb_length = 3

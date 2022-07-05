@@ -5,6 +5,7 @@ import numpy as np
 from tqdm import tqdm
 from jnerf.ops.code_ops import *
 from jnerf.dataset.dataset import jt_srgb_to_linear, jt_linear_to_srgb
+from jnerf.utils.general import get_data, adaptive_rgb_length
 from jnerf.utils.config import get_cfg, save_cfg
 from jnerf.utils.registry import build_from_cfg,NETWORKS,SCHEDULERS,DATASETS,OPTIMS,SAMPLERS,LOSSES
 from jnerf.models.losses.mse_loss import img2mse, mse2psnr
@@ -44,7 +45,9 @@ class Runner():
         self.image_resolutions = self.dataset["train"].resolution
         self.W = self.image_resolutions[0]
         self.H = self.image_resolutions[1]
-
+        # get_data()
+        adaptive_rgb_length(self.cfg.rgb_length)
+        
     def train(self):
         for i in tqdm(range(self.tot_train_steps)):
             self.cfg.m_training_step = i

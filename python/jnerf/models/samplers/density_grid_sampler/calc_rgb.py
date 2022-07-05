@@ -7,6 +7,7 @@ from jittor import Function, exp, log
 import jittor_utils
 import numpy as np
 from jnerf.ops.code_ops.global_vars import global_headers,proj_options,ngp_suffix,fn_mapping
+from jnerf.utils.config import get_cfg
 jt.flags.use_cuda = 1
 
 class CalcRgb(Function):
@@ -14,7 +15,7 @@ class CalcRgb(Function):
         self.density_grad_header = density_grad_header
         self.bg_color = bg_color
         self.aabb_range = aabb_range
-
+        self.rgb_length = get_cfg().rgb_length
         self.n_rays_per_batch = n_rays_per_batch
         self.padded_output_width = padded_output_width
         self.num_elements = n_rays_per_batch*n_rays_step
@@ -26,6 +27,7 @@ class CalcRgb(Function):
         self.code_path = pathlib.Path(__file__).parent.resolve()
         self.so_name = os.path.join(user_jittor_path, fn_mapping["cr"]+ngp_suffix)
         self.rgb_options = copy.deepcopy(proj_options)
+        print(self.so_name)
         self.rgb_options[f"FLAGS: -dc {self.so_name}"] = 1
         if using_fp16:
             self.grad_type = 'float16'
@@ -68,9 +70,9 @@ class CalcRgb(Function):
         ENerfActivation density_activation=ENerfActivation({self.density_activation});
         calculate_rgb cc;
         // gpuErrchk(cudaMemcpyFromSymbol(&cc, cc_ptr, sizeof(calculate_rgb)));
-        compute_rgbs_{self.func_suffix}(0,stream,
+        compute_rgbs_{self.func_suffix}_{self.rgb_length}(0,stream,
             n_rays, m_aabb,padded_output_width,(grad_t*)network_output_p,rgb_activation,density_activation,
-            PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),(uint32_t*)rays_numsteps_p,(Array3f*)rgb_output_p,(uint32_t*)rays_numsteps_compacted_p,(Array3f*)training_background_color_p,NERF_CASCADES(),MIN_CONE_STEPSIZE(), cc);
+            PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),(uint32_t*)rays_numsteps_p,(RGBArray*)rgb_output_p,(uint32_t*)rays_numsteps_compacted_p,(RGBArray*)training_background_color_p,NERF_CASCADES(),MIN_CONE_STEPSIZE(), cc);
            
 """)
 
@@ -106,9 +108,9 @@ class CalcRgb(Function):
         uint32_t padded_output_width=network_output_shape1;
         ENerfActivation rgb_activation=ENerfActivation({self.rgb_activation});
         ENerfActivation density_activation=ENerfActivation({self.density_activation});
-        compute_rgbs_grad_{self.func_suffix}(0,stream,
+        compute_rgbs_grad_{self.func_suffix}_{self.rgb_length}(0,stream,
             n_rays, m_aabb,padded_output_width,(grad_t*)dloss_doutput_p,(grad_t*)network_output_p,(uint32_t*)rays_numsteps_p,
-            PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),rgb_activation,density_activation,(Array3f*)grad_x_p,(Array3f*)rgb_output_p,(float*)density_grid_mean_p,NERF_CASCADES(),MIN_CONE_STEPSIZE(), ccg);
+            PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),rgb_activation,density_activation,(RGBArray*)grad_x_p,(RGBArray*)rgb_output_p,(float*)density_grid_mean_p,NERF_CASCADES(),MIN_CONE_STEPSIZE(), ccg);
            
 
 """)
@@ -143,14 +145,14 @@ class CalcRgb(Function):
         BoundingBox m_aabb = BoundingBox(Eigen::Vector3f::Constant({self.aabb_range[0]}), Eigen::Vector3f::Constant({self.aabb_range[1]}));
         uint32_t padded_output_width=network_output_shape1;
 
-        Array3f bg_color=Array3f( {self.bg_color[0]},{self.bg_color[1]},{self.bg_color[2]} );
+        RGBArray bg_color=RGBArray( {self.bg_color[0]},{self.bg_color[1]},{self.bg_color[2]} );
         
         ENerfActivation rgb_activation=ENerfActivation({self.rgb_activation});
         ENerfActivation density_activation=ENerfActivation({self.density_activation});
        
 
-        compute_rgbs_inference_{self.func_suffix}(0, stream,
-            n_rays, m_aabb,padded_output_width,bg_color,(grad_t*)network_output_p,rgb_activation,density_activation, PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),(uint32_t*)rays_numsteps_p,(Array3f*)rgb_output_p,NERF_CASCADES(),MIN_CONE_STEPSIZE(), cc);
+        compute_rgbs_inference_{self.func_suffix}_{self.rgb_length}(0, stream,
+            n_rays, m_aabb,padded_output_width,bg_color,(grad_t*)network_output_p,rgb_activation,density_activation, PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),(uint32_t*)rays_numsteps_p,(RGBArray*)rgb_output_p,NERF_CASCADES(),MIN_CONE_STEPSIZE(), cc);
 """)
 
         rgb_output.compile_options = self.rgb_options

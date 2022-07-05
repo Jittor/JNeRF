@@ -175,3 +175,19 @@ def get_data():
     data_o_path = os.path.join(work_dir, "utils", "data.zip")
     os.system(f"mkdir -p {user_jittor_path}")
     shutil.unpack_archive(data_o_path, user_jittor_path)
+
+def adaptive_rgb_length(rgb_length):
+    import pathlib, re, jnerf
+    header_path = os.path.join(pathlib.Path(jnerf.__file__+"/../").resolve(), "models", "samplers", "density_grid_sampler", "op_header", "calc_rgb.h")
+    ray_header_path = os.path.join(pathlib.Path(jnerf.__file__+"/../").resolve(), "models", "samplers", "density_grid_sampler", "op_header", "ray_sampler_header.h")
+    header_file = open(header_path, "r")
+    ray_sampler_code = open(ray_header_path, "r").read()
+    head_codes = header_file.read()
+    header_file = open(header_path, "w")
+    ray_sampler_file = open(ray_header_path, "w")
+    ray_sampler_code = re.sub("define rgb_length \d+", f"define rgb_length {rgb_length}", ray_sampler_code)
+    head_codes = re.sub("_\d+", f"_{rgb_length}", head_codes)
+    header_file.write(head_codes)
+    ray_sampler_file.write(ray_sampler_code)
+    header_file.close()
+    ray_sampler_file.close()

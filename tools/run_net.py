@@ -9,7 +9,6 @@ import numpy as np
 import os
 from jnerf.runner import Runner 
 from jnerf.utils.config import init_cfg
-from jnerf.utils.general import get_data
 # jt.flags.gopt_disable=1
 jt.flags.use_cuda = 1
 
@@ -43,7 +42,6 @@ def main():
     if args.config_file:
         init_cfg(args.config_file)
 
-    get_data()
     runner = Runner()
 
     if args.task == "train":
