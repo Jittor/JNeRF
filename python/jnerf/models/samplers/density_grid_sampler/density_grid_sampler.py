@@ -12,6 +12,7 @@ from .calc_rgb import CalcRgb
 from jnerf.utils.config import get_cfg
 from jnerf.utils.registry import SAMPLERS
 from jnerf.ops.code_ops.global_vars import global_headers, proj_options
+from math import ceil, log2
 
 @SAMPLERS.register_module()
 class DensityGridSampler(nn.Module):
@@ -53,8 +54,10 @@ class DensityGridSampler(nn.Module):
 
         # check aabb_scale
         max_aabb_scale = 1 << (self.NERF_CASCADES - 1)
-        assert self.dataset.aabb_scale <= max_aabb_scale,f'''NeRF dataset's aabb_scale must <= {max_aabb_scale},
-        but now is {self.dataset.aabb_scale}. You can increase this max_aabb_scale limit by factors of 2 by incrementing NERF_CASCADES.'''
+        if self.dataset.aabb_scale > max_aabb_scale: 
+            self.NERF_CASCADES = ceil(log2(self.dataset.aabb_scale)) + 1
+            print(f'''Warning:Default max value of NeRF dataset's aabb_scale is {max_aabb_scale}, but now is {self.dataset.aabb_scale}.
+            You can increase this max_aabb_scale limit by factors of 2 by incrementing NERF_CASCADES. We automatically help you set NERF_CASCADES to {self.NERF_CASCADES}, which may result in slower speeds.''')
         
         self.max_cascade = 0
         while (1 << self.max_cascade) < self.dataset.aabb_scale:
