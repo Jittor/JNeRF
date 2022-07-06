@@ -12,14 +12,14 @@ void cudaErrorCheck(cudaError_t err, char* file, int line, bool abort)
 }
 
 //Users can customize their ways of calculating RGB through rays here.
-__device__ void nerf_calculate_rgb(const RGBArray rgb, const float dt, const float density, RGBArray& rgb_ray, float& T) {
+__device__ void nerf_calculate_rgb_3(const RGBArray rgb, const float dt, const float density, RGBArray& rgb_ray, float& T) {
 	const float alpha = 1.f - __expf(-density * dt);
 	const float weight = alpha * T;
 	rgb_ray += weight * rgb;
 	T *= (1.f - alpha);
 }
 
-__device__ void nerf_calculate_rgb_grad(const RGBArray rgb, const float dt, const float density, RGBArray& rgb_ray2, float& T, RGBArray* rgb_ray, RGBArray* loss_grad, RGBArray& suffix, RGBArray& dloss_by_drgb) {
+__device__ void nerf_calculate_rgb_grad_3(const RGBArray rgb, const float dt, const float density, RGBArray& rgb_ray2, float& T, RGBArray* rgb_ray, RGBArray* loss_grad, RGBArray& suffix, RGBArray& dloss_by_drgb) {
 	const float alpha = 1.f - __expf(-density * dt);
 	const float weight = alpha * T;
 	rgb_ray2 += weight * rgb;
@@ -31,8 +31,8 @@ __device__ void nerf_calculate_rgb_grad(const RGBArray rgb, const float dt, cons
 
 typedef void(*calculate_rgb_grad)(const Array3f, const float, const float, Array3f&, float&, Array3f*, Array3f*, Array3f&, Array3f&);
 typedef void(*calculate_rgb)(const Array3f, const float, const float, Array3f&, float&);
-__device__ calculate_rgb_grad ccg_ptr = nerf_calculate_rgb_grad;
-__device__ calculate_rgb cc_ptr = nerf_calculate_rgb;
+__device__ calculate_rgb_grad ccg_ptr = nerf_calculate_rgb_grad_3;
+__device__ calculate_rgb cc_ptr = nerf_calculate_rgb_3;
 //Use nerf volume rendering formula to calculate the color of every ray
 //Calculate the value of each sampling point on ray and calculate integral summation .
 //if compacted step equals to that before compacted ,then add background color to the ray color output
