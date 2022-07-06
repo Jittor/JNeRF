@@ -45,7 +45,7 @@ class Runner():
         self.image_resolutions = self.dataset["train"].resolution
         self.W = self.image_resolutions[0]
         self.H = self.image_resolutions[1]
-        # get_data()
+        get_data()
         adaptive_rgb_length(self.cfg.rgb_length)
         
     def train(self):
