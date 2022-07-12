@@ -13,6 +13,7 @@ from jnerf.models.losses.mse_loss import img2mse, mse2psnr
 class Runner():
     def __init__(self):
         self.cfg = get_cfg()
+        assert self.cfg.rgb_length >= 3 and self.cfg.rgb_length <= 16, "Failed: RGB length should no less than 3 and no bigger than 16."
         if self.cfg.fp16 and jt.flags.cuda_archs[0] < 70:
             print("Warning: Sm arch is lower than sm_70, fp16 is not supported. Automatically use fp32 instead.")
             self.cfg.fp16 = False
