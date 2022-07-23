@@ -22,9 +22,7 @@ class CalcRgb(Function):
         self.density_activation = 3
         self.ray_numstep_counter = jt.zeros([2], 'int32')
         self.code_path = pathlib.Path(__file__).parent.resolve()
-        # self.so_name = os.path.join(pathlib.Path(jnerf.ops.code_ops.__file__+"/../op_header").resolve(), "calc_rgb.o")
         self.rgb_options = copy.deepcopy(proj_options)
-        # self.rgb_options[f"FLAGS: -Xlinker {self.so_name}"] = 1
         if using_fp16:
             self.grad_type = 'float16'
         else:
