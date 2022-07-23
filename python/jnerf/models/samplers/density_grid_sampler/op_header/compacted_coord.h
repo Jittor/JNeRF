@@ -16,7 +16,8 @@ __global__ void compacted_coord(
 	const uint32_t *__restrict__ numsteps_in,
 	uint32_t *__restrict__ numsteps_counter,
 	uint32_t *__restrict__ numsteps_out,
-	uint32_t *compacted_rays_counter)
+	uint32_t *compacted_rays_counter,
+	float EPSILON)
 {
 	const uint32_t i = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -32,14 +33,14 @@ __global__ void compacted_coord(
 
 	float T = 1.f;
 
-	float EPSILON = 1e-4f;
+	// float EPSILON = 1e-4f;
 
 	uint32_t compacted_numsteps = 0;
 	for (; compacted_numsteps < numsteps; ++compacted_numsteps)
 	{
 		if (T < EPSILON)
 		{
-			// break;
+			break;
 		}
 
 		const vector_t<TYPE, 4> local_network_output = *(vector_t<TYPE, 4> *)network_output;
