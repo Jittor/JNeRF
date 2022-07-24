@@ -138,7 +138,6 @@ class NerfDataset():
         json_data=None
         ## get frames
         for json_path in json_paths:
-
             with open(json_path,'r')as f:
                 data=json.load(f)
             if json_data is None:
@@ -174,7 +173,7 @@ class NerfDataset():
             matrix=np.array(frame['transform_matrix'],np.float32)[:-1, :]
             self.transforms_gpu.append(
                             self.matrix_nerf2ngp(matrix, self.scale, self.offset))
-                           
+                    
         self.resolution=[self.W,self.H]
         self.resolution_gpu=jt.array(self.resolution)
         metadata=np.empty([11],np.float32)

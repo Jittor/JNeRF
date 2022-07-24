@@ -137,7 +137,6 @@ class DensityGridSampler(nn.Module):
         if is_training:
             if self.cfg.m_training_step%self.update_den_freq==0:
                 self.update_density_grid()
-
         coords, rays_index, rays_numsteps, rays_numsteps_counter = self.rays_sampler.execute(
             rays_o=rays_o, rays_d=rays_d, density_grid_bitfield=self.density_grid_bitfield,
             metadata=self.dataset.metadata, imgs_id=img_ids, xforms=self.dataset.transforms_gpu)
@@ -268,4 +267,73 @@ class DensityGridSampler(nn.Module):
         self.n_rays_per_batch=int(min(self.div_round_up(int(rays_per_batch),128)*128,self.target_batch_size))
         jt.init.zero_(self.measured_batch_size)
         self.dataset.batch_size=self.n_rays_per_batch
+    
+    def set_status(self, is_train):
+        if not is_train:
+            self.n_rays_per_batch = self.cfg.n_rays_per_batch_test
+        else:
+            self.n_rays_per_batch = self.cfg.n_rays_per_batch
+        self.compacted_coords.set_status(is_train, self.n_rays_per_batch)
+        self.calc_rgb.set_status(is_train, self.n_rays_per_batch)
+        self.rays_sampler.set_status(is_train, self.n_rays_per_batch)
+    
+    def bbox_test(self, rays_o, rays_d, metadata, xforms, n_rays, img_id):
+        cuda_header = '''
+        #include "ray_sampler.h"
+        '''
+        cuda_header = global_headers + self.density_grad_header + cuda_header
+        cuda_src = f'''
+        @alias(rays_o, in0)
+        @alias(rays_d, in1)
+        @alias(metadata, in2)
+        @alias(training_xforms, in3)
+        @alias(img_id, in4)
+        @alias(cone_angles, out0)
+        @alias(hits, out1)
+        cudaStream_t stream = 0;
+        float cone_angle_constant = {self.cone_angle_constant};
+        float near_distance = {self.near_distance};
+        uint32_t n_rays = cone_angles_shape0;
+        BoundingBox m_aabb = BoundingBox(Eigen::Vector3f::Constant({self.aabb_range[0]}), Eigen::Vector3f::Constant({self.aabb_range[1]}));
+        linear_kernel(get_hits_t, 0, stream, n_rays, (Vector3f*) rays_o_p, (Vector3f*) rays_d_p, cone_angle_constant, m_aabb, (uint32_t*)img_id_p, near_distance, (TrainingImageMetadata *)metadata_p, (Eigen::Matrix<float, 3, 4>*) training_xforms_p, (float*)cone_angles_p, (float*) hits_p, rng);
+        rng.advance();
+        '''
+        cone_angles = jt.zeros((rays_o.shape[0])).float32()
+        hits = jt.zeros((rays_o.shape[0], 2)).float32()
+        jt.sync_all()
+        cone_angles, hits = jt.code([rays_o, rays_d, metadata, xforms, img_id], [cone_angles, hits], cuda_header=cuda_header, cuda_src=cuda_src)
+        cone_angles.compile_options = proj_options
+        return cone_angles, hits
+    
+    def test_raysample(self, rays_o, rays_d, hits, cone_angles, numsteps_in, metadata, alive_indices, n_rays, img_id, spr=1):
+        cuda_header = '''
+        #include "ray_sampler.h"
+        '''
+        cuda_header = global_headers + self.density_grad_header + cuda_header
+        cuda_src = f'''
+        @alias(rays_o, in0)
+        @alias(rays_d, in1)
+        @alias(density_grid, in2)
+        @alias(metadata, in3)
+        @alias(numsteps_in, in4)
+        @alias(cone_angles, in5)
+        @alias(img_id, in6)
+        @alias(coords_out, out0)
+        @alias(N_eff_samples, out1)
+        @alias(alive_indices, out2)
+        @alias(hits, out3)
+        cudaStream_t stream = 0;
+        uint32_t n_rays = N_eff_samples_shape0;
+        uint32_t spr = coords_out_shape0 / n_rays;
+        BoundingBox m_aabb = BoundingBox(Eigen::Vector3f::Constant({self.aabb_range[0]}), Eigen::Vector3f::Constant({self.aabb_range[1]}));
+        linear_kernel(raymarching_test_kernel, 0, stream, n_rays, (Vector3f *)rays_o_p, (Vector3f *)rays_d_p, (Vector2f *)hits_p, m_aabb, (float*)cone_angles_p, (int*)alive_indices_p, (uint8_t*)density_grid_p, spr, (uint32_t*)img_id_p, (TrainingImageMetadata *)metadata_p, (uint32_t*)numsteps_in_p, PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_out_p, 1, 0, 0), (int*)N_eff_samples_p);
+        '''
+        N_alive = alive_indices.shape[0]
+        coords_out = jt.empty((spr * N_alive, 7), 'float32')
+        N_eff_samples = jt.zeros((alive_indices.shape[0])).int32()
+        coords, N_eff_samples, alive_indices, hits = jt.code([rays_o, rays_d, self.density_grid_bitfield, metadata, numsteps_in, cone_angles, img_id], [coords_out, N_eff_samples, alive_indices, hits], cuda_header=cuda_header,cuda_src=cuda_src)
+        coords_out.compile_options = proj_options
+        return coords, N_eff_samples, hits
 
+    def additional_calc_rgb(self, network_outputs, coords_in, rgbs, opacity, numsteps_in, N_eff_samples, alive_indices, n_rays):
+        return self.calc_rgb.additional_calc_rgb(network_outputs, coords_in, rgbs, opacity, numsteps_in, N_eff_samples, alive_indices, n_rays)

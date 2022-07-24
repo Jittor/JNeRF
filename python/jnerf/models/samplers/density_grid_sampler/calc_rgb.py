@@ -138,10 +138,41 @@ class CalcRgb(Function):
         ENerfActivation rgb_activation=ENerfActivation({self.rgb_activation});
         ENerfActivation density_activation=ENerfActivation({self.density_activation});
         linear_kernel(compute_rgbs_inference<grad_t>, 0, stream,
-            n_rays, m_aabb,padded_output_width,bg_color,(grad_t*)network_output_p,rgb_activation,density_activation, PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),(uint32_t*)rays_numsteps_p,(Array3f*)rgb_output_p,NERF_CASCADES(),MIN_CONE_STEPSIZE());      
+            n_rays, m_aabb, padded_output_width,bg_color,(grad_t*)network_output_p,rgb_activation,density_activation, PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0), (uint32_t*)rays_numsteps_p,(Array3f*)rgb_output_p,NERF_CASCADES(),MIN_CONE_STEPSIZE());      
 """)
 
         rgb_output.compile_options = self.rgb_options
         rgb_output.sync()
         self.rgb_output = rgb_output.detach()
         return rgb_output
+    
+    def set_status(self, is_train, n_rays_per_batch):
+        if not is_train:
+            self.n_rays_per_batch = n_rays_per_batch
+    
+    def additional_calc_rgb(self, network_outputs, coords_in, rgbs, opacity, numsteps_in, N_eff_samples, alive_indices, n_rays):
+        cuda_header = '''
+        #include "calc_rgb.h"
+        '''
+        cuda_header = global_headers + self.density_grad_header + cuda_header
+        cuda_src = f'''
+        #define grad_t in0_type
+        @alias(network_output, in0)
+        @alias(coords_in, in1)
+        @alias(numsteps_in, in2)
+        @alias(N_eff_samples, in3)
+        @alias(alive_indices, out0)
+        @alias(rgbs, out1)
+        @alias(opacity, out2)
+        cudaStream_t stream = 0;
+        uint32_t n_rays = N_eff_samples_shape0;
+        uint32_t padded_output_width=network_output_shape1;
+        ENerfActivation rgb_activation=ENerfActivation({self.rgb_activation});
+        ENerfActivation density_activation=ENerfActivation({self.density_activation});
+        BoundingBox m_aabb = BoundingBox(Eigen::Vector3f::Constant({self.aabb_range[0]}), Eigen::Vector3f::Constant({self.aabb_range[1]}));
+        Array3f bg_color=Array3f( {self.bg_color[0]},{self.bg_color[1]},{self.bg_color[2]} );
+        linear_kernel(compute_rgbs_render<grad_t>, 0, stream, n_rays, m_aabb, padded_output_width, bg_color, (int*)alive_indices_p, (grad_t*) network_output_p, rgb_activation,density_activation, PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0), (uint32_t*)numsteps_in_p, (float*)opacity_p, (Array3f*)rgbs_p, (int*)N_eff_samples_p, NERF_CASCADES(),MIN_CONE_STEPSIZE(), 0.01f);
+        '''
+        alive_indices, rgbs, opacity = jt.code([network_outputs, coords_in, numsteps_in, N_eff_samples], [alive_indices, rgbs, opacity], cuda_header=cuda_header,cuda_src=cuda_src)
+        rgbs.compile_options = proj_options
+        return alive_indices, rgbs, opacity

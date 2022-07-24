@@ -38,11 +38,12 @@ __global__ void compacted_coord(
 	uint32_t compacted_numsteps = 0;
 	for (; compacted_numsteps < numsteps; ++compacted_numsteps)
 	{
-		if (T < EPSILON)
-		{
-			break;
+		if (EPSILON > 0) {
+			if (T < EPSILON)
+			{
+				break;
+			}
 		}
-
 		const vector_t<TYPE, 4> local_network_output = *(vector_t<TYPE, 4> *)network_output;
 		const Array3f rgb = network_to_rgb(local_network_output, rgb_activation);
 		const Vector3f pos = unwarp_position(coords_in->pos.p, aabb);

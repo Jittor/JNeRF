@@ -211,3 +211,79 @@ __global__ void compute_rgbs_inference(
 	}
 	rgb_output[i] = rgb_ray;
 }
+
+template <typename TYPE>
+__global__ void compute_rgbs_render(
+	const uint32_t n_rays, 						//total rays in the image
+	BoundingBox aabb,
+	int padded_output_width,					//network output width
+	Array3f background_color,					//background color
+	int* __restrict__ alive_indices,      // alive rays
+	const TYPE *network_output,					//network output
+	ENerfActivation rgb_activation,				//activation of rgb in output 
+	ENerfActivation density_activation,			//activation of density in output 
+	PitchedPtr<NerfCoordinate> coords_in,		//network input,(xyz,dt,dir)
+	uint32_t *__restrict__ numsteps_in,			//rays offset and base counter
+	float* __restrict__ opacity, 				//T for each ray
+	Array3f *rgb_output,						//rays rgb output
+	const int* __restrict__ N_eff_samples,		//samples in a ray
+	int NERF_CASCADES,							//num of density grid level
+	float MIN_CONE_STEPSIZE,						//lower bound of step size
+	float EPSILON
+	)
+{
+	const uint32_t i = threadIdx.x + blockIdx.x * blockDim.x;
+
+	if (i >= n_rays)
+	{
+		return;
+	}
+
+	uint32_t ray_idx = alive_indices[i];
+	// uint32_t numsteps = numsteps_in[i * 2 + 0];
+	uint32_t base = numsteps_in[i];
+	// if (numsteps == 0)
+	// {
+	// 	rgb_output[i] = background_color;
+	// 	return;
+	// }
+	coords_in += base;
+	network_output += base * padded_output_width;
+
+	float T = 1 - opacity[ray_idx];
+	Array3f& rgb_ray = rgb_output[ray_idx];
+
+	uint32_t compacted_numsteps = 0;
+	for (; compacted_numsteps < N_eff_samples[i]; ++compacted_numsteps)
+	{
+		const vector_t<TYPE, 4> local_network_output = *(vector_t<TYPE, 4> *)network_output;
+		const Array3f rgb = network_to_rgb(local_network_output, rgb_activation);
+		const Vector3f pos = unwarp_position(coords_in.ptr->pos.p, aabb);
+		const float dt = unwarp_dt(coords_in.ptr->dt, NERF_CASCADES, MIN_CONE_STEPSIZE);
+		float density = network_to_density(float(local_network_output[3]), density_activation);
+
+		const float alpha = 1.f - __expf(-density * dt);
+		const float weight = alpha * T;
+		rgb_ray += weight * rgb;
+		opacity[ray_idx] += weight;
+		T *= (1.f - alpha);
+		network_output += padded_output_width;
+		coords_in += 1;
+		if(EPSILON > 0 && T < EPSILON) {
+			// early stop.
+			alive_indices[i] = -1;
+			rgb_ray += T * background_color;
+			return;
+		}
+	}
+	if(N_eff_samples[i] == 0) { 
+		alive_indices[i] = -1;
+		rgb_ray += T * background_color;
+		return;
+	}
+	// if (compacted_numsteps == numsteps)
+	// {
+	// 	rgb_ray += T * background_color;
+	// }
+	// rgb_output[i] = rgb_ray;
+}

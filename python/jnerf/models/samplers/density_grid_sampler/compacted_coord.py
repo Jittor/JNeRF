@@ -2,11 +2,13 @@ import os
 import jittor as jt
 from jittor import Function, exp, log
 import numpy as np
+from jnerf.utils.config import get_cfg
 from jnerf.ops.code_ops.global_vars import global_headers,proj_options
 jt.flags.use_cuda = 1
 
 class CompactedCoord(Function):
     def __init__(self, density_grad_header, aabb_range=(-1.5, 2.5), n_rays_per_batch=4096, n_rays_step=1024, using_fp16=False, compacted_elements=None):
+        self.cfg = get_cfg()
         self.density_grad_header=density_grad_header
         self.aabb_range=aabb_range
         self.n_rays_per_batch = n_rays_per_batch
@@ -23,7 +25,9 @@ class CompactedCoord(Function):
         self.grad_type='float32'
         if using_fp16:
             self.grad_type='float16'
-
+        self.train_epsilon = self.cfg.train_epsilon
+        self.test_epsilon = self.cfg.test_epsilon
+        self.is_train = True
 
     def execute(self, network_output, coords_in, rays_numsteps):
         # input
@@ -54,12 +58,12 @@ class CompactedCoord(Function):
         BoundingBox m_aabb = BoundingBox(Eigen::Vector3f::Constant({self.aabb_range[0]}), Eigen::Vector3f::Constant({self.aabb_range[1]}));
         uint32_t padded_output_width=network_output_shape1;
         Array4f bg_color=Array4f( {self.bg_color[0]},{self.bg_color[1]},{self.bg_color[2]},1 );
-        
+        float epsilon = {self.train_epsilon if self.is_train else self.test_epsilon};
         ENerfActivation rgb_activation=ENerfActivation({self.rgb_activation});
         ENerfActivation density_activation=ENerfActivation({self.density_activation});
         linear_kernel(compacted_coord<grad_t>,0,stream,
             n_rays, m_aabb, compacted_elements,padded_output_width,bg_color,(grad_t*)network_output_p,rgb_activation,density_activation,
-            (NerfCoordinate*)coords_in_p,(NerfCoordinate*)coords_out_p,(uint32_t*)rays_numsteps_p,(uint32_t*)compacted_numstep_counter_p,(uint32_t*)rays_numsteps_compacted_p,(uint32_t*)compacted_rays_counter_p);
+            (NerfCoordinate*)coords_in_p,(NerfCoordinate*)coords_out_p,(uint32_t*)rays_numsteps_p,(uint32_t*)compacted_numstep_counter_p,(uint32_t*)rays_numsteps_compacted_p,(uint32_t*)compacted_rays_counter_p, epsilon);
            
 """)
         
@@ -73,3 +77,7 @@ class CompactedCoord(Function):
         ##should not reach here
         assert(False)
         return None
+    
+    def set_status(self, is_train, n_rays_per_batch):
+        self.is_train = is_train
+        self.n_rays_per_batch = n_rays_per_batch

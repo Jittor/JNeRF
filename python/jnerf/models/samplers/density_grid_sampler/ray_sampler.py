@@ -16,6 +16,7 @@ class RaySampler(Function):
         self.cone_angle_constant = cone_angle_constant
         self.path = os.path.join(os.path.dirname(__file__), '..', 'op_include')
         self.ray_numstep_counter = jt.zeros([2], 'int32')
+        self.n_rays_step = n_rays_step
 
     def execute(self, rays_o, rays_d, density_grid_bitfield, metadata, imgs_id, xforms):
         # input
@@ -76,3 +77,8 @@ class RaySampler(Function):
         assert(grad_x == None)
         assert(False)
         return None
+
+    def set_status(self, is_train, n_rays_per_batch=None):
+        if not is_train:
+            self.n_rays_per_batch = n_rays_per_batch
+            self.n_elements = n_rays_per_batch * self.n_rays_step

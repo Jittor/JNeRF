@@ -86,11 +86,13 @@ class Runner():
         if load_ckpt:
             assert os.path.exists(self.ckpt_path), "ckpt file does not exist: "+self.ckpt_path
             self.load_ckpt(self.ckpt_path)
+        self.sampler.set_status(False)
+        # self.n_rays_per_batch = self.cfg.n_rays_per_batch_test
         if self.dataset["test"] is None:
             self.dataset["test"] = build_from_cfg(self.cfg.dataset.test, DATASETS)
         if not os.path.exists(os.path.join(self.save_path, "test")):
             os.makedirs(os.path.join(self.save_path, "test"))
-        mse_list=self.render_test(save_path=os.path.join(self.save_path, "test"))
+        mse_list=self.render_full_image(save_path=os.path.join(self.save_path, "test"))
         if self.dataset["test"].have_img:
             tot_psnr=0
             for mse in mse_list:
@@ -210,7 +212,6 @@ class Runner():
                     [rays_o, jt.ones([end-H*W]+rays_o.shape[1:], rays_o.dtype)], dim=0)
                 rays_d = jt.concat(
                     [rays_d, jt.ones([end-H*W]+rays_d.shape[1:], rays_d.dtype)], dim=0)
-
             pos, dir = self.sampler.sample(img_ids, rays_o, rays_d)
             network_outputs = self.model(pos, dir)
             rgb = self.sampler.rays2rgb(network_outputs, inference=True)
@@ -244,3 +245,56 @@ class Runner():
             img[pixel:end] = rgb.numpy()
         img = img[:H*W].reshape(H, W, 3)
         return img
+    
+    def render_full_image(self, save_img=True, save_path=None):
+        '''
+        render an image instead of a chunk of rays per iter, will merge sample and render operations.
+        '''
+        W, H = self.image_resolutions
+        H = int(H)
+        W = int(W)
+        mse_list = []
+        exp_step_factor = 1
+        for img_id in tqdm(range(0,self.dataset["test"].n_images,1)):
+            img_ids = jt.zeros([H*W], 'int32')+img_id
+            rays_o, rays_d, rays_pix_total = self.dataset["test"].generate_rays_total_test(img_ids, W, H)
+            img_id = jt.zeros([1], "int32") + img_id
+            N_rays = len(rays_o)
+            opacity = jt.zeros(N_rays)
+            rgb = jt.zeros((N_rays, 3))
+            samples = 0
+            alive_indices = jt.arange(N_rays)
+            metadata = self.dataset["test"].metadata
+            cone_angles, hits_t = self.sampler.bbox_test(rays_o, rays_d, metadata, self.dataset["train"].transforms_gpu, N_rays, img_id)
+            jt.sync_all()
+            MAX_SAMPLES = 1024
+            while samples < MAX_SAMPLES:
+                N_alive = alive_indices.shape[0] # notice N_ray in calc_rgb should be N_alive
+                if N_alive == 0: 
+                    break
+                min_samples = 1 if exp_step_factor==0 else 4
+                N_samples = max(min(N_rays//N_alive, 64), min_samples)
+                samples += N_samples
+                numsteps_in = jt.arange(0, N_samples * N_alive, N_samples)
+                coords, N_eff_samples, hits_t = self.sampler.test_raysample(rays_o, rays_d, hits_t, cone_angles, numsteps_in, metadata, alive_indices, N_alive, img_id, N_samples)
+                jt.sync_all()
+                coords_pos = coords[...,  :3].detach()
+                coords_dir = coords[..., 4: ].detach()
+                # TODO: implement zero mask in jittor.
+                network_outputs = self.model(coords_pos, coords_dir)
+                jt.sync_all()
+                alive_indices, rgb, opacity = self.sampler.additional_calc_rgb(network_outputs, coords, rgb, opacity, numsteps_in, N_eff_samples, alive_indices, N_alive)
+                jt.sync_all()
+                alive_indices = alive_indices[alive_indices>=0] # remove converged rays
+            img = rgb.numpy()[:H*W].reshape(H, W, 3)
+            imgs_tar=jt.array(self.dataset["test"].image_data[img_id]).reshape(H, W, 4)
+            imgs_tar = imgs_tar[..., :3] * imgs_tar[..., 3:] + jt.array(self.background_color) * (1 - imgs_tar[..., 3:])
+            img_tar = imgs_tar.detach().numpy()
+            if save_img:
+                self.save_img(save_path+f"/{self.exp_name}_r_{img_id}.png", img)
+                if self.dataset["test"].have_img:
+                    self.save_img(save_path+f"/{self.exp_name}_gt_{img_id}.png", img_tar)
+            mse_list.append(img2mse(
+                jt.array(img), 
+                jt.array(img_tar)).item())
+        return mse_list
