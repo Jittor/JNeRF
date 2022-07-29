@@ -51,6 +51,7 @@ class Runner():
             self.load_ckpt(self.ckpt_path)
         else:
             self.start=0
+        self.alpha_image=self.cfg.alpha_image
 
         self.cfg.m_training_step = 0
         self.val_freq = 4096
@@ -151,7 +152,7 @@ class Runner():
         
     def val_img(self, iter):
         with jt.no_grad():
-            img, img_tar = self.render_img(dataset_mode="val")
+            img, _, img_tar= self.render_img(dataset_mode="val")
             self.save_img(self.save_path+f"/img{iter}.png", img)
             self.save_img(self.save_path+f"/target{iter}.png", img_tar)
             return img2mse(
@@ -166,12 +167,18 @@ class Runner():
         for img_i in tqdm(range(0,self.dataset["test"].n_images,1)):
             with jt.no_grad():
                 imgs=[]
+                alphas=[]
                 for i in range(1):
-                    simg, img_tar = self.render_img(dataset_mode="test", img_id=img_i)
+                    simg, alpha,img_tar = self.render_img(dataset_mode="test", img_id=img_i)
                     imgs.append(simg)
+                    alphas.append(alpha)
                 img = np.stack(imgs, axis=0).mean(0)
+                if self.alpha_image:
+                    alpha = np.stack(alphas, axis=0).mean(0)
+                else:
+                    alpha = None
                 if save_img:
-                    self.save_img(save_path+f"/{self.exp_name}_r_{img_i}.png", img)
+                    self.save_img(save_path+f"/{self.exp_name}_r_{img_i}.png", img, alpha)
                     if self.dataset["test"].have_img:
                         self.save_img(save_path+f"/{self.exp_name}_gt_{img_i}.png", img_tar)
                 mse_list.append(img2mse(
@@ -179,7 +186,9 @@ class Runner():
                 jt.array(img_tar)).item())
         return mse_list
 
-    def save_img(self, path, img):
+    def save_img(self, path, img, alpha=None):
+        if alpha is not None:
+            img = np.concatenate([img, alpha], axis=-1)
         if isinstance(img, np.ndarray):
             ndarr = (img*255+0.5).clip(0, 255).astype('uint8')
         elif isinstance(img, jt.Var):
@@ -201,6 +210,7 @@ class Runner():
         rays_pix_total = rays_pix_total.unsqueeze(-1)
         pixel = 0
         imgs = np.empty([H*W+self.n_rays_per_batch, 3])
+        alphas = np.empty([H*W+self.n_rays_per_batch, 1])
         for pixel in range(0, W*H, self.n_rays_per_batch):
             end = pixel+self.n_rays_per_batch
             rays_o = rays_o_total[pixel:end]
@@ -213,14 +223,16 @@ class Runner():
 
             pos, dir = self.sampler.sample(img_ids, rays_o, rays_d)
             network_outputs = self.model(pos, dir)
-            rgb = self.sampler.rays2rgb(network_outputs, inference=True)
+            rgb,alpha = self.sampler.rays2rgb(network_outputs, inference=True)
             imgs[pixel:end] = rgb.numpy()
+            alphas[pixel:end] = alpha.numpy()
         imgs = imgs[:H*W].reshape(H, W, 3)
+        alphas = alphas[:H*W].reshape(H, W, 1)
         imgs_tar=jt.array(self.dataset[dataset_mode].image_data[img_id]).reshape(H, W, 4)
         imgs_tar = imgs_tar[..., :3] * imgs_tar[..., 3:] + jt.array(self.background_color) * (1 - imgs_tar[..., 3:])
         imgs_tar = imgs_tar.detach().numpy()
         jt.gc()
-        return imgs, imgs_tar
+        return imgs, alphas, imgs_tar
 
     def render_img_with_pose(self, pose):
         W, H = self.image_resolutions
