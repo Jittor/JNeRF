@@ -159,9 +159,10 @@ __global__ void compute_rgbs_inference(
 	ENerfActivation density_activation,			//activation of density in output 
 	PitchedPtr<NerfCoordinate> coords_in,		//network input,(xyz,dt,dir)
 	uint32_t *__restrict__ numsteps_in,			//rays offset and base counter
-	Array3f *rgb_output,						//rays rgb output
+	Array3f *__restrict__ rgb_output,						//rays rgb output
 	int NERF_CASCADES,							//num of density grid level
-	float MIN_CONE_STEPSIZE						//lower bound of step size
+	float MIN_CONE_STEPSIZE,					//lower bound of step size
+	float* __restrict__ alpha_output
 	)
 {
 	const uint32_t i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -176,6 +177,7 @@ __global__ void compute_rgbs_inference(
 	if (numsteps == 0)
 	{
 		rgb_output[i] = background_color;
+		alpha_output[i] = 0;
 		return;
 	}
 	coords_in += base;
@@ -210,4 +212,5 @@ __global__ void compute_rgbs_inference(
 		rgb_ray += T * background_color;
 	}
 	rgb_output[i] = rgb_ray;
+	alpha_output[i] = 1-T;
 }
