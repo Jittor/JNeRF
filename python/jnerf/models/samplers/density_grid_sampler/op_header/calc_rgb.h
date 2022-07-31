@@ -176,7 +176,7 @@ __global__ void compute_rgbs_inference(
 	uint32_t base = numsteps_in[i * 2 + 1];
 	if (numsteps == 0)
 	{
-		rgb_output[i] = background_color;
+		rgb_output[i] = Array3f::Zero();
 		alpha_output[i] = 0;
 		return;
 	}
@@ -206,10 +206,6 @@ __global__ void compute_rgbs_inference(
 		T *= (1.f - alpha);
 		network_output += padded_output_width;
 		coords_in += 1;
-	}
-	if (compacted_numsteps == numsteps)
-	{
-		rgb_ray += T * background_color;
 	}
 	rgb_output[i] = rgb_ray;
 	alpha_output[i] = 1-T;
