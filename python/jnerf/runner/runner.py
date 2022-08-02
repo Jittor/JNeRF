@@ -252,7 +252,7 @@ class Runner():
                     [rays_d, jt.ones([end-H*W]+rays_d.shape[1:], rays_d.dtype)], dim=0)
             pos, dir = self.sampler.sample(fake_img_ids, rays_o, rays_d)
             network_outputs = self.model(pos, dir)
-            rgb = self.sampler.rays2rgb(network_outputs, inference=True)
+            rgb, _ = self.sampler.rays2rgb(network_outputs, inference=True)
             img[pixel:end] = rgb.numpy()
         img = img[:H*W].reshape(H, W, 3)
         return img
