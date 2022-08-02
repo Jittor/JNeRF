@@ -175,8 +175,6 @@ class Runner():
                 img = np.stack(imgs, axis=0).mean(0)
                 if self.alpha_image:
                     alpha = np.stack(alphas, axis=0).mean(0)
-                else:
-                    alpha = None
                 if save_img:
                     self.save_img(save_path+f"/{self.exp_name}_r_{img_i}.png", img, alpha)
                     if self.dataset["test"].have_img:
@@ -231,6 +229,9 @@ class Runner():
         imgs_tar=jt.array(self.dataset[dataset_mode].image_data[img_id]).reshape(H, W, 4)
         imgs_tar = imgs_tar[..., :3] * imgs_tar[..., 3:] + jt.array(self.background_color) * (1 - imgs_tar[..., 3:])
         imgs_tar = imgs_tar.detach().numpy()
+        if not self.alpha_image:
+            imgs = imgs + np.array(self.background_color)*(1-alphas)
+            alphas = None
         jt.gc()
         return imgs, alphas, imgs_tar
 
@@ -241,6 +242,7 @@ class Runner():
         fake_img_ids = jt.zeros([H*W], 'int32')
         rays_o_total, rays_d_total = self.dataset["train"].generate_rays_with_pose(pose, W, H)
         img = np.empty([H*W+self.n_rays_per_batch, 3])
+        alpha = np.empty([H*W+self.n_rays_per_batch, 1])
         for pixel in range(0, W*H, self.n_rays_per_batch):
             end = pixel+self.n_rays_per_batch
             rays_o = rays_o_total[pixel:end]
@@ -252,7 +254,11 @@ class Runner():
                     [rays_d, jt.ones([end-H*W]+rays_d.shape[1:], rays_d.dtype)], dim=0)
             pos, dir = self.sampler.sample(fake_img_ids, rays_o, rays_d)
             network_outputs = self.model(pos, dir)
-            rgb, _ = self.sampler.rays2rgb(network_outputs, inference=True)
+            rgb,a = self.sampler.rays2rgb(network_outputs, inference=True)
             img[pixel:end] = rgb.numpy()
+            alpha[pixel:end] = a.numpy()
         img = img[:H*W].reshape(H, W, 3)
+        alpha = alpha[:H*W].reshape(H, W, 1)
+        if not self.alpha_image:
+            img = img + np.array(self.background_color)*(1 - alpha)
         return img
