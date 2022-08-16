@@ -241,7 +241,7 @@ __global__ void compute_rgbs_render(
 
 	uint32_t ray_idx = alive_indices[i];
 	// uint32_t numsteps = numsteps_in[i * 2 + 0];
-	uint32_t base = numsteps_in[i];
+	uint32_t base = i == 0 ? 0 : numsteps_in[i-1];
 	// if (numsteps == 0)
 	// {
 	// 	rgb_output[i] = background_color;

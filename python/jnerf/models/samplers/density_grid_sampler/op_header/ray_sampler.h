@@ -171,11 +171,6 @@ __global__ void raymarching_test_kernel(
 	uint32_t base = numsteps_in[n];
 	coords_out += base;
 	float cone_angle = cone_angles[r];
-    // const uint32_t grid_size3 = grid_size*grid_size*grid_size;
-    // const float grid_size_inv = 1.0f/grid_size;
-    // const float ox = rays_o[r][0], oy = rays_o[r][1], oz = rays_o[r][2];
-    // const float dx = rays_d[r][0], dy = rays_d[r][1], dz = rays_d[r][2];
-    // const float dx_inv = 1.0f/dx, dy_inv = 1.0f/dy, dz_inv = 1.0f/dz;
 	Vector3f warped_dir = warp_direction(rays_d[r]);
 	Vector3f ray_o = rays_o[r];
 	Vector3f ray_d = rays_d[r];
@@ -200,4 +195,22 @@ __global__ void raymarching_test_kernel(
 		}
 	}
 	N_eff_samples[n] = j;
+}
+
+__global__ void compact_rays_kernel(
+	uint32_t n_rays,
+	uint32_t* N_eff_samples,
+	uint32_t* cumsum_steps,
+	uint32_t* numsteps_in,
+	PitchedPtr<NerfCoordinate> coords_in,
+	PitchedPtr<NerfCoordinate> coords_out
+){
+    const int n = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n >= n_rays || N_eff_samples[n] == 0) return;
+	uint32_t base = n == 0 ? 0 : cumsum_steps[n-1];
+	coords_out += base;
+	coords_in += numsteps_in[n];
+	for(int ray_idx=0;ray_idx<N_eff_samples[n];ray_idx++){
+		coords_out(ray_idx)->copy_with_optional_light_dir(*coords_in(ray_idx), coords_out.stride_in_bytes);
+	}
 }

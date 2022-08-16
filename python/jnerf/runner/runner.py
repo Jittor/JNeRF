@@ -92,7 +92,7 @@ class Runner():
             self.dataset["test"] = build_from_cfg(self.cfg.dataset.test, DATASETS)
         if not os.path.exists(os.path.join(self.save_path, "test")):
             os.makedirs(os.path.join(self.save_path, "test"))
-        mse_list=self.render_full_image(save_path=os.path.join(self.save_path, "test"))
+        mse_list=self.render_full_image(save_path=os.path.join(self.save_path, "test"), save_img=False)
         if self.dataset["test"].have_img:
             tot_psnr=0
             for mse in mse_list:
@@ -266,35 +266,32 @@ class Runner():
             alive_indices = jt.arange(N_rays)
             metadata = self.dataset["test"].metadata
             cone_angles, hits_t = self.sampler.bbox_test(rays_o, rays_d, metadata, self.dataset["train"].transforms_gpu, N_rays, img_id)
-            jt.sync_all()
             MAX_SAMPLES = 1024
             while samples < MAX_SAMPLES:
                 N_alive = alive_indices.shape[0] # notice N_ray in calc_rgb should be N_alive
                 if N_alive == 0: 
                     break
-                min_samples = 1 if exp_step_factor==0 else 4
+                min_samples = 1 if exp_step_factor==0 else 8
                 N_samples = max(min(N_rays//N_alive, 64), min_samples)
                 samples += N_samples
                 numsteps_in = jt.arange(0, N_samples * N_alive, N_samples)
                 coords, N_eff_samples, hits_t = self.sampler.test_raysample(rays_o, rays_d, hits_t, cone_angles, numsteps_in, metadata, alive_indices, N_alive, img_id, N_samples)
-                jt.sync_all()
+                cumsum_steps = jt.cumsum(N_eff_samples)
+                coords = self.sampler.compact_ray(N_eff_samples, cumsum_steps, numsteps_in, coords)
                 coords_pos = coords[...,  :3].detach()
                 coords_dir = coords[..., 4: ].detach()
-                # TODO: implement zero mask in jittor.
                 network_outputs = self.model(coords_pos, coords_dir)
-                jt.sync_all()
-                alive_indices, rgb, opacity = self.sampler.additional_calc_rgb(network_outputs, coords, rgb, opacity, numsteps_in, N_eff_samples, alive_indices, N_alive)
-                jt.sync_all()
+                alive_indices, rgb, opacity = self.sampler.additional_calc_rgb(network_outputs, coords, rgb, opacity, cumsum_steps, N_eff_samples, alive_indices, N_alive)
                 alive_indices = alive_indices[alive_indices>=0] # remove converged rays
             img = rgb.numpy()[:H*W].reshape(H, W, 3)
-            imgs_tar=jt.array(self.dataset["test"].image_data[img_id]).reshape(H, W, 4)
-            imgs_tar = imgs_tar[..., :3] * imgs_tar[..., 3:] + jt.array(self.background_color) * (1 - imgs_tar[..., 3:])
-            img_tar = imgs_tar.detach().numpy()
+            # imgs_tar=jt.array(self.dataset["test"].image_data[img_id]).reshape(H, W, 4)
+            # imgs_tar = imgs_tar[..., :3] * imgs_tar[..., 3:] + jt.array(self.background_color) * (1 - imgs_tar[..., 3:])
+            # img_tar = imgs_tar.detach().numpy()
             if save_img:
                 self.save_img(save_path+f"/{self.exp_name}_r_{img_id}.png", img)
                 if self.dataset["test"].have_img:
                     self.save_img(save_path+f"/{self.exp_name}_gt_{img_id}.png", img_tar)
-            mse_list.append(img2mse(
-                jt.array(img), 
-                jt.array(img_tar)).item())
+            # mse_list.append(img2mse(
+            #     jt.array(img), 
+            #     jt.array(img_tar)).item())
         return mse_list

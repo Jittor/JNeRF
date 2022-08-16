@@ -335,5 +335,26 @@ class DensityGridSampler(nn.Module):
         coords_out.compile_options = proj_options
         return coords, N_eff_samples, hits
 
+    def compact_ray(self, N_eff_samples, cumsum_steps, numsteps_in, coords_in):
+        cuda_header = '''
+        #include "ray_sampler.h"
+        '''
+        cuda_header = global_headers + self.density_grad_header + cuda_header
+        cuda_src = f'''
+        @alias(N_eff_samples, in0)
+        @alias(cumsum_steps, in1)
+        @alias(numsteps_in, in2)
+        @alias(coords_in, in3)
+        @alias(coords_out, out0)
+        cudaStream_t stream = 0;
+        uint32_t n_rays = N_eff_samples_shape0;
+        linear_kernel(compact_rays_kernel, 0, stream, n_rays, (uint32_t*)N_eff_samples_p, (uint32_t*)cumsum_steps_p, (uint32_t*)numsteps_in_p, PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_out_p, 1, 0, 0));
+        '''
+        compact_size = int(cumsum_steps[-1].data)
+        coords_out = jt.empty((compact_size, 7), 'float32')
+        coords_out = jt.code([N_eff_samples, cumsum_steps, numsteps_in, coords_in], [coords_out], cuda_header=cuda_header,cuda_src=cuda_src)[0]
+        coords_out.compile_options = proj_options
+        return coords_out
+
     def additional_calc_rgb(self, network_outputs, coords_in, rgbs, opacity, numsteps_in, N_eff_samples, alive_indices, n_rays):
         return self.calc_rgb.additional_calc_rgb(network_outputs, coords_in, rgbs, opacity, numsteps_in, N_eff_samples, alive_indices, n_rays)
