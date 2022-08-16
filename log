@@ -1,6 +1,0 @@
-Loading config from:  ./projects/ngp/configs/ngp_base.py
-load train data
-load val data
-Loading ckpt from: ./logs/lego/params.pkl
-Loading ckpt from: ./logs/lego/params.pkl
-load test data
