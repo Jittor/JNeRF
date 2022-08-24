@@ -9,6 +9,7 @@ from jnerf.utils.config import get_cfg, save_cfg
 from jnerf.utils.registry import build_from_cfg,NETWORKS,SCHEDULERS,DATASETS,OPTIMS,SAMPLERS,LOSSES
 from jnerf.models.losses.mse_loss import img2mse, mse2psnr
 from jnerf.dataset import camera_path
+from jnerf.utils.postprocess import *
 import cv2
 
 class Runner():
@@ -262,3 +263,169 @@ class Runner():
         if not self.alpha_image:
             img = img + np.array(self.background_color)*(1 - alpha)
         return img
+
+class MipRunner():
+    def __init__(self):
+        self.cfg = get_cfg()
+        if not os.path.exists(self.cfg.log_dir):
+            os.makedirs(self.cfg.log_dir)
+        self.exp_name = self.cfg.exp_name
+        self.dataset = {}
+        self.dataset["train"]   = build_from_cfg(self.cfg.dataset.train, DATASETS, near = self.cfg.near, far=self.cfg.far)
+        self.cfg.dataset_obj    = self.dataset["train"]
+        self.dataset["val"]     = build_from_cfg(self.cfg.dataset.val, DATASETS, near = self.cfg.near, far=self.cfg.far)
+        self.dataset["test"]    = build_from_cfg(self.cfg.dataset.test, DATASETS, near = self.cfg.near, far=self.cfg.far)
+        self.model              = build_from_cfg(self.cfg.model, NETWORKS)
+        self.cfg.model_obj      = self.model
+        self.sampler            = build_from_cfg(self.cfg.sampler, SAMPLERS)
+        self.cfg.sampler_obj    = self.sampler
+        self.optimizer          = build_from_cfg(self.cfg.optim, OPTIMS, params=self.model.parameters())
+        self.optimizer          = build_from_cfg(self.cfg.linearlog, OPTIMS, nested_optimizer=self.optimizer)
+        # self.ema_optimizer      = build_from_cfg(self.cfg.ema, OPTIMS, params=self.model.parameters())
+        self.loss_func              = build_from_cfg(self.cfg.loss, LOSSES)
+        self.background_color   = self.cfg.background_color
+        self.tot_train_steps    = self.cfg.tot_train_steps
+
+        self.cfg.m_training_step = 0
+        self.val_freq = 4096
+        self.n_rays_per_batch = self.cfg.n_rays_per_batch
+        self.using_fp16 = self.cfg.using_fp16
+        self.save_path=os.path.join(self.cfg.log_dir, self.exp_name)
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path)
+        self.image_resolutions = self.dataset["train"].resolution
+        self.W = self.image_resolutions[0]
+        self.H = self.image_resolutions[1]
+        # MIPNERF PARAMS
+        self.white_bkgd = self.cfg.white_bkgd
+        self.num_levels = self.cfg.num_levels
+        self.coarse_loss_mult = self.cfg.coarse_loss_mult
+        self.disable_multiscale_loss = self.cfg.disable_multiscale_loss
+    
+    def get_rgb_density(self, img_ids, rays):
+        ret = []
+        t_vals, weights = None, None
+        for i_level in range(self.num_levels):
+            samples_enc, viewdirs_enc, t_vals = self.sampler.sample(img_ids, rays, i_level, t_vals, weights)
+            raw_rgb, raw_density = self.model(samples_enc, viewdirs_enc)
+            # print("ret:", raw_rgb, raw_density)
+            # print(rgb, density)
+            comp_rgb, distance, acc, weights = self.sampler.rays2rgb(rays, raw_rgb, raw_density, t_vals)
+            # print("rgb", comp_rgb, distance, acc, weights)
+            ret.append((comp_rgb, distance, acc))
+        return ret
+
+    def train(self):
+        for i in tqdm(range(self.tot_train_steps)):
+            self.cfg.m_training_step = i
+            img_ids, rays, rgb_target = next(self.dataset["train"])
+            ret = self.get_rgb_density(img_ids, rays)
+            mask = rays.lossmult
+            if self.disable_multiscale_loss:
+                mask = jt.ones_like(mask)
+            # all level's results will contribute to final loss
+            # training_background_color = jt.random([rgb_target.shape[0],3]).stop_grad()
+            # rgb_target = (rgb_target[..., :3] * rgb_target[..., 3:] + training_background_color * (1 - rgb_target[..., 3:])).detach()
+            rgb_target = rgb_target[..., :3] * rgb_target[..., 3:]
+            loss = []
+
+            for (rgb, _, _) in ret:
+                loss.append(self.loss_func(rgb, rgb_target) / mask.sum())
+
+            loss = self.coarse_loss_mult * jt.sum(loss[:-1]) + loss[-1]
+            # print("rgb: ", rgb_target, rgb)
+            # print("loss: ", loss)
+            self.optimizer.step(loss)
+            if self.using_fp16:
+                self.model.set_fp16()
+            if i>0 and i%self.val_freq==0:
+                psnr=mse2psnr(self.val_img(i))
+                print("STEP={} | LOSS={} | VAL PSNR={}".format(i,loss.mean().item(), psnr))
+            if i % 1000 == 0 and i > 0:
+                psnr=mse2psnr(self.val_img(i))
+                print("STEP={} | LOSS={} | VAL PSNR={}".format(i,loss.mean().item(), psnr))
+        self.test()
+
+    def test(self):
+        if not os.path.exists(os.path.join(self.save_path, "test")):
+            os.makedirs(os.path.join(self.save_path, "test"))
+        mse_list=self.render_test(save_path=os.path.join(self.save_path, "test"))
+        if self.dataset["test"].have_img:
+            tot_psnr=0
+            for mse in mse_list:
+                tot_psnr += mse2psnr(mse)
+            print("TOTAL TEST PSNR===={}".format(tot_psnr/len(mse_list)))
+        
+    def val_img(self, iter):
+        with jt.no_grad():
+            img, img_tar = self.render_img(dataset_mode="val")
+            self.save_img(self.save_path+f"/img{iter}.png", img)
+            self.save_img(self.save_path+f"/target{iter}.png", img_tar)
+            return img2mse(
+                jt.array(img), 
+                jt.array(img_tar)).item()
+    
+    def render_test(self, save_img=True, save_path=None):
+        if save_path is None:
+            save_path = self.save_path
+        mse_list = []
+        print("rendering testset...")
+        #  for img_i in tqdm(range(0,self.dataset["test"].n_images,1)):
+        for img_i in tqdm(range(0,self.dataset["test"].n_images,1)):
+            with jt.no_grad():
+                imgs=[]
+                for i in range(1):
+                    simg, img_tar = self.render_img(dataset_mode="test", img_id=img_i)
+                    imgs.append(simg)
+                img = np.stack(imgs, axis=0).mean(0)
+                if save_img:
+                    self.save_img(save_path+f"/{self.exp_name}_r_{img_i}.png", img)
+                    self.save_img(save_path+f"/{self.exp_name}_gt_{img_i}.png", img_tar)
+                mse_list.append(img2mse(
+                jt.array(img), 
+                jt.array(img_tar)).item())
+        return mse_list
+
+    def save_img(self, path, img):
+        if isinstance(img, np.ndarray):
+            ndarr = (img*255+0.5).clip(0, 255).astype('uint8')
+        elif isinstance(img, jt.Var):
+            ndarr = (img*255+0.5).clamp(0, 255).uint8().numpy()
+        im = Image.fromarray(ndarr)
+        im.save(path)
+
+    def render_img(self, dataset_mode="train", img_id=None):
+        W, H = self.image_resolutions
+        H = int(H)
+        W = int(W)
+        if img_id is None:
+            img_ids = np.random.randint(0, self.dataset[dataset_mode].n_images, [1])[0]
+            # img_ids = jt.zeros([H*W], 'int32')+img_id
+        else:
+            img_ids = img_id
+        rays = self.dataset[dataset_mode].generate_rays_total_test(img_ids, W, H)
+        height = self.H
+        width = self.W
+        num_rays = self.H * self.W
+        rays = namedtuple_map(lambda r: r.reshape((num_rays, -1)), rays)
+        results = []
+        chunk = 8192
+        for i in range(0, num_rays, chunk):
+            # pylint: disable=cell-var-from-loop
+            chunk_rays = namedtuple_map(lambda r: r[i:i + chunk], rays)
+            chunk_size = chunk_rays.origins.shape[0]
+            padding = 0
+            rays_per_host = chunk_rays.origins.shape[0] 
+            start, stop = 0, 1 * rays_per_host
+            chunk_rays = namedtuple_map(lambda r: r[start:stop], chunk_rays)
+            chunk_results = self.get_rgb_density(img_ids, chunk_rays)[-1]
+            results.append(chunk_results)
+        rgb, distance, acc = [jt.concat(r, dim=0) for r in zip(*results)]
+        rgb = rgb.reshape((height, width, -1))
+        distance = distance.reshape((height, width))
+        acc = acc.reshape((height, width))
+
+        imgs_tar=self.dataset[dataset_mode].image_data[img_ids].reshape(H, W, 4)
+        imgs_tar = imgs_tar[..., :3] * imgs_tar[..., 3:] + jt.array(self.background_color) * (1 - imgs_tar[..., 3:])
+        imgs_tar = imgs_tar.detach().numpy()
+        return rgb, imgs_tar
