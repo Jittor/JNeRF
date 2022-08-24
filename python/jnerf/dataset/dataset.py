@@ -11,81 +11,12 @@ from math import tan
 from tqdm import tqdm
 import numpy as np
 from jnerf.utils.registry import DATASETS
-NERF_SCALE = 0.33
-
-
-def fov_to_focal_length(resolution: int, degrees: float):
-    return 0.5*resolution/tan(0.5*degrees*pi/180)
-
-def write_image_imageio(img_file, img, quality):
-    img = (np.clip(img, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
-    kwargs = {}
-    if os.path.splitext(img_file)[1].lower() in [".jpg", ".jpeg"]:
-        if img.ndim >= 3 and img.shape[2] > 3:
-            img = img[:,:,:3]
-        kwargs["quality"] = quality
-        kwargs["subsampling"] = 0
-    imageio.imwrite(img_file, img, **kwargs)
-
-def read_image_imageio(img_file):
-    img = imageio.imread(img_file)
-    img = np.asarray(img).astype(np.float32)
-    if len(img.shape) == 2:
-        img = img[:,:,np.newaxis]
-    return img / 255.0
-
-def srgb_to_linear(img):
-    limit = 0.04045
-    return np.where(img > limit, np.power((img + 0.055) / 1.055, 2.4), img / 12.92)
-
-def linear_to_srgb(img):
-    limit = 0.0031308
-    return np.where(img > limit, 1.055 * (img ** (1.0 / 2.4)) - 0.055, 12.92 * img)
-
-def jt_srgb_to_linear(img):
-    limit = 0.04045
-    return jt.ternary(img > limit, jt.pow((img + 0.055) / 1.055, 2.4), img / 12.92)
-
-def jt_linear_to_srgb(img):
-    limit = 0.0031308
-    return jt.ternary(img > limit, 1.055 * (img ** (1.0 / 2.4)) - 0.055, 12.92 * img)
-
-def read_image(file):
-    if os.path.splitext(file)[1] == ".bin":
-        with open(file, "rb") as f:
-            bytes = f.read()
-            h, w = struct.unpack("ii", bytes[:8])
-            img = np.frombuffer(bytes, dtype=np.float16, count=h*w*4, offset=8).astype(np.float32).reshape([h, w, 4])
-    else:
-        img = jt.array(read_image_imageio(file))
-        # if img.shape[2] == 4:
-        #     img[...,0:3] = jt_srgb_to_linear(img[...,0:3])
-        #     # Premultiply alpha
-        #     img[...,0:3] *= img[...,3:4]
-        # else:
-        #     img = jt_srgb_to_linear(img)
-    return img.numpy()
-
-def write_image(file, img, quality=95):
-    if os.path.splitext(file)[1] == ".bin":
-        if img.shape[2] < 4:
-            img = np.dstack((img, np.ones([img.shape[0], img.shape[1], 4 - img.shape[2]])))
-        with open(file, "wb") as f:
-            f.write(struct.pack("ii", img.shape[0], img.shape[1]))
-            f.write(img.astype(np.float16).tobytes())
-    else:
-        if img.shape[2] == 4:
-            img = np.copy(img)
-            # Unmultiply alpha
-            img[...,0:3] = np.divide(img[...,0:3], img[...,3:4], out=np.zeros_like(img[...,0:3]), where=img[...,3:4] != 0)
-            img[...,0:3] = linear_to_srgb(img[...,0:3])
-        else:
-            img = linear_to_srgb(img)
-        write_image_imageio(file, img, quality)
+from .dataset_util import *
 
 @DATASETS.register_module()
 class NerfDataset():
-    def __init__(self,root_dir, batch_size, mode='train', H=0, W=0, correct_pose=[1,-1,-1], aabb_scale=None, offset=None, img_alpha=True,to_jt=True, have_img=True, preload_shuffle=True):
+
+    def __init__(self,root_dir, batch_size, mode='train', H=0, W=0, correct_pose=[1,-1,-1], aabb_scale=None, scale=None, offset=None, img_alpha=True,to_jt=True, have_img=True, preload_shuffle=True):
         self.root_dir=root_dir
         self.batch_size=batch_size
         self.preload_shuffle=preload_shuffle
@@ -93,7 +24,10 @@ class NerfDataset():
         self.W=W
         self.correct_pose = correct_pose
         self.aabb_scale = aabb_scale
-        self.scale=0
+        if scale is None:
+            self.scale = NERF_SCALE
+        else:
+            self.scale = scale
         if offset is None:
             self.offset=[0.5,0.5,0.5]
         else:
@@ -104,7 +38,7 @@ class NerfDataset():
         self.image_data=[]
         self.focal_lengths=[]
         self.n_images=0
-        self.img_alpha=img_alpha## img RGBA or RGB
+        self.img_alpha=img_alpha# img RGBA or RGB
         self.to_jt=to_jt
         self.have_img=have_img
         self.compacted_img_data=[]# img_id ,rgba,ray_d,ray_o
@@ -115,6 +49,7 @@ class NerfDataset():
         jt.gc()
         self.image_data = self.image_data.reshape(
             self.n_images, -1, 4).detach()
+        # breakpoint()
 
     def __next__(self):
         if self.idx_now+self.batch_size >= self.shuffle_index.shape[0]:
@@ -150,11 +85,10 @@ class NerfDataset():
                 json_data['frames']+=data['frames']
 
         ## init set  scale & offset
-        self.scale = NERF_SCALE
         if 'h' in json_data:
-            self.H=json_data['h']
+            self.H=int(json_data['h'])
         if 'w' in json_data:
-            self.W=json_data['w']
+            self.W=int(json_data['w'])
 
         frames=json_data['frames']
         if self.mode=="val":
@@ -168,16 +102,9 @@ class NerfDataset():
                     if not os.path.exists(img_path):
                         continue
                 img = read_image(img_path)
-                # img = cv2.imread(img_path,cv2.IMREAD_UNCHANGED)
                 if self.H==0 or self.W==0:
-                    self.H=img.shape[0]
-                    self.W=img.shape[1]
-                # if img.shape[-1]==3:
-                #     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                # else:
-                #     img=cv2.cvtColor(img,cv2.COLOR_BGRA2RGBA)
-                # img=img.astype(np.float32)/255
-                # print("img1",img.shape,img.max())
+                    self.H=int(img.shape[0])
+                    self.W=int(img.shape[1])
                 self.image_data.append(img)
             else:
                 self.image_data.append(np.zeros((self.H,self.W,3)))
@@ -301,6 +228,25 @@ class NerfDataset():
         rays_pix = ((xy_int[:, 1]) * H+(xy_int[:, 0])).int()
         # rays origin /dir   rays hit point offset
         return rays_o, rays_d, rays_pix
+    
+    def generate_rays_with_pose(self, pose, H, W):
+        nray = H*W
+        pose = self.matrix_nerf2ngp(pose, self.scale, self.offset)
+        focal_length = self.focal_lengths[:1].expand(nray, -1)
+        xforms = pose.unsqueeze(0).expand(nray, -1, -1)
+        principal_point = self.metadata[:1, 4:6].expand(nray, -1)
+        xy = jt.stack(jt.meshgrid((jt.linspace(0, H-1, H)+0.5)/H, (jt.linspace(0,
+                      W-1, W)+0.5)/W), dim=-1).permute(1, 0, 2).reshape(-1, 2)
+        xy_int = jt.stack(jt.meshgrid(jt.linspace(
+            0, H-1, H), jt.linspace(0, W-1, W)), dim=-1).permute(1, 0, 2).reshape(-1, 2)
+        rays_o = xforms[:, :, 3]
+        res = jt.array(self.resolution)
+        rays_d = jt.concat([
+            (xy-principal_point) * res/focal_length, 
+            jt.ones([H*W, 1])
+        ], dim=-1)
+        rays_d = jt.normalize(xforms[:, :, :3].matmul(rays_d.unsqueeze(2)))
+        return rays_o, rays_d
 
     def matrix_nerf2ngp(self, matrix, scale, offset):
         matrix[:, 0] *= self.correct_pose[0]

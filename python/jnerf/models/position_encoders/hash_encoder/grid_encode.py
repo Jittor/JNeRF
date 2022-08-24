@@ -1,10 +1,11 @@
 import os
 import jittor as jt
-from jittor import Function, exp, log
+from jittor import Function
 import numpy as np
 import sys
 from jnerf.utils.common import enlarge
 from jnerf.ops.code_ops.global_vars import global_headers,proj_options
+from math import exp, log, log2, pow, ceil
 jt.flags.use_cuda = 1
 
 class GridEncode(Function):
@@ -16,20 +17,18 @@ class GridEncode(Function):
     def __init__(self, hash_func_header, aabb_scale=1, n_pos_dims=3, n_features_per_level=2, n_levels=16, base_resolution=16, log2_hashmap_size=19,n_rays_per_batch=4096,MAX_STEP=1024,using_fp16=False):
         self.hash_func_header = hash_func_header
         desired_resolution = 2048.0
-        m_per_level_scale = jt.exp(
-            jt.log(desired_resolution * aabb_scale / base_resolution) / (n_levels-1)).item()
+        m_per_level_scale = exp(log(desired_resolution * aabb_scale / base_resolution) / (n_levels-1))
         n_features = n_features_per_level * n_levels
         m_n_levels = self.div_round_up(n_features, n_features_per_level, int)
         offsets_table_host = [0 for x in range(33)]
         offset = 0
         for i in range(m_n_levels):
-            scale = jt.pow(2, (i*jt.log2(m_per_level_scale).item())
-                           ) * base_resolution - 1.0
-            resolution = (jt.ceil(scale)).item() + 1
-            params_in_level = jt.pow(int(resolution), int(n_pos_dims)).item()
+            scale = pow(2, (i*log2(m_per_level_scale))) * base_resolution - 1.0
+            resolution = ceil(scale) + 1
+            params_in_level = int(resolution)**int(n_pos_dims)
             params_in_level = self.div_round_up(params_in_level, 8, int)*8
-            params_in_level = np.minimum(
-                params_in_level, (1 << log2_hashmap_size)).item()
+            params_in_level = min(
+                params_in_level, (1 << log2_hashmap_size))
             offsets_table_host[i] = offset
             offset += params_in_level
         offsets_table_host[m_n_levels] = offset
@@ -38,7 +37,6 @@ class GridEncode(Function):
         self.m_hashmap_offsets_table = jt.empty([n_levels+1], 'int32')
         for i in range(m_n_levels+1):
             self.m_hashmap_offsets_table[i] = offsets_table_host[i]
-        # self.m_grid = jt.empty([m_n_params], 'float')
         self.N_POS_DIMS = n_pos_dims
         self.N_FEATURES_PER_LEVEL = n_features_per_level
         self.m_n_features = n_features
@@ -69,9 +67,6 @@ class GridEncode(Function):
         self.num_elements=x.shape[0]
         assert(m_grid.dtype==self.grad_type)
         assert(self.m_encoded_positions.dtype==self.grad_type)
-        # if self.m_positions.shape[0]<self.num_elements*self.N_POS_DIMS:
-        #     enlarge(self.m_positions,self.num_elements*self.N_POS_DIMS)
-        #     enlarge(self.m_encoded_positions,self.num_elements*self.m_n_features*2)
         output = jt.empty([self.num_elements,32], self.grad_type)
         output,self.m_positions,self.m_encoded_positions = jt.code([ self.m_hashmap_offsets_table, x, m_grid],[output,self.m_positions,self.m_encoded_positions], 
         cuda_header=self.hash_func_header+'#include "HashEncode.h"', cuda_src=f"""

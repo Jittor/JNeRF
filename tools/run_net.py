@@ -17,6 +17,7 @@ def main():
     if jt.flags.cuda_archs[0] < 61:
         print("!!Failed:SM ARCH VERSION TOO LOW!! SM ARCH VERSION MUST BIGGER THAN sm_61!!")
         return
+    assert jt.flags.cuda_archs[0] >= 61, "Failed: Sm arch version is too low! Sm arch version must not be lower than sm_61!"
     parser = argparse.ArgumentParser(description="Jittor Object Detection Training")
     parser.add_argument(
         "--config-file",
@@ -31,10 +32,9 @@ def main():
         help="train,val,test",
         type=str,
     )
-
     parser.add_argument(
         "--save_dir",
-        default="logs",
+        default="",
         type=str,
     )
     
@@ -49,10 +49,9 @@ def main():
     if args.task == "train":
         runner.train()
     elif args.task == "test":
-        runner.test()
+        runner.test(True)
     elif args.task == "render":
-        print("TODO: load model")
-        runner.render_all(True, args.save_dir)
+        runner.render(True, args.save_dir)
     
 if __name__ == "__main__":
     main()

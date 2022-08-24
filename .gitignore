@@ -2,3 +2,7 @@ __pycache__/
 logs/
 data/
 !data/fox
+python/build
+python/dist
+*.egg-info
+*.pkl

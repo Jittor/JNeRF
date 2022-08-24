@@ -1,4 +1,32 @@
-#pragma once
+/*
+ * Tiny self-contained version of the PCG Random Number Generation for C++
+ * put together from pieces of the much larger C/C++ codebase.
+ * Wenzel Jakob, February 2015
+ *
+ * The PCG random number generator was developed by Melissa O'Neill
+ * <oneill@pcg-random.org>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * For additional information about the PCG random number generation scheme,
+ * including its license and other licensing options, visit
+ *
+ *     http://www.pcg-random.org
+ *
+ * Note: This code was modified by the JNeRF authors.
+ */
+ 
+ #pragma once
 
 #define TCNN_HOST_DEVICE __host__ __device__
 #define NGP_HOST_DEVICE __host__ __device__

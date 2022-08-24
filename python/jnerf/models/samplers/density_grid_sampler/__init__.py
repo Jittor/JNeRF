@@ -1,1 +1,1 @@
-from .density_grid_sampler import DensityGirdSampler
+from .density_grid_sampler import DensityGridSampler

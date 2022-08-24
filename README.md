@@ -21,6 +21,10 @@ JNeRF environment requirements:
 * GPU compiler (optional)
     * nvcc (>=10.0 for g++ or >=10.2 for clang)
 * GPU library: cudnn-dev (recommend tar file installation, [reference link](https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#installlinux-tar))
+* GPU supporting:
+  * sm arch >= sm_61 (GTX 10x0 / TITAN Xp and above)
+  * to use fp16: sm arch >= sm_70 (TITAN V / V100 and above). JNeRF will automatically use original fp32 if the requirements are not meet.
+  * to use FullyFusedMLP: sm arch >= sm_75 (RTX 20x0 and above). JNeRF will automatically use original MLPs if the requirements are not meet.
 
 **Step 1: Install the requirements**
 ```shell
@@ -32,11 +36,16 @@ python -m pip install -r requirements.txt
 If you have any installation problems for Jittor, please refer to [Jittor](https://github.com/Jittor/jittor)
 
 **Step 2: Install JNeRF**
- 
-You can add ```export PYTHONPATH=$PYTHONPATH:{your_path_to_jnerf}/JNeRF/python``` into ```~/.bashrc```, and run
+
+JNeRF is a benchmark toolkit and can be updated frequently, so installing in editable mode is recommended.
+Thus any modifications made to JNeRF will take effect without reinstallation.
+
 ```shell
-source ~/.bashrc
+cd python
+python -m pip install -e .
 ```
+
+After installation, you can ```import jnerf``` in python interpreter to check if it is successful or not.
 
 ## Getting Started
 
@@ -45,7 +54,7 @@ source ~/.bashrc
 We use fox datasets and blender lego datasets for training demonstrations. 
 
 #### Fox Dataset
-We provided fox dataset in this repository at `./data/fox`.
+We provided fox dataset (from [Instant-NGP](https://github.com/NVlabs/instant-ngp)) in this repository at `./data/fox`.
 
 #### Lego Dataset
 You can download the lego dataset in nerf_example_data.zip at https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1. And move `lego` folder to `./data/lego`.
@@ -58,15 +67,34 @@ If you want to train JNerf with your own dataset, then you should follow the for
 
 We organize our configs of JNeRF in projects/. You are referred to `./projects/ngp/configs/ngp_base.py` to learn how it works.
 
-### Train & Test
+### Train from scratch
 
-Train and test on `lego` scene are combined in a single command. It should be noted that since jittor is a just-in-time compilation framework, it will take some time to compile on the first run.
+You can train from scratch on the `lego` scene with the following command. It should be noted that since jittor is a just-in-time compilation framework, it will take some time to compile on the first run.
 ```shell
 python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py
 ```
+
 ### GPU Supporting
 
 JNeRF must run on GPU with sm arch no less than sm_61 (GTX 10x0 and above). If you want to enable FullyFusedMLP, then the sm arch of the GPU must be no less than sm_75(RTX 20x0 and above). JNeRF will use original MLPs if the requirements are not meet.
+=======
+NOTE: Competitors participating in the Jittor AI Challenge can use `./projects/ngp/configs/ngp_comp.py` as config.
+
+### Test with pre-trained model
+
+After training, the ckpt file `params.pkl` will be automatically saved in `./logs/lego/`. And you can modify the ckpt file path by setting the `ckpt_path` in the config file. 
+
+Set the `--task` of the command to `test` to test with pre-trained model:
+```shell
+python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --task test
+```
+
+### Render demo video
+
+Set the `--task` of the command to `render` to render demo video `demo.mp4` with specified camera path based on pre-trained model:
+```shell
+python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --task render
+```
 
 ## Performance
 
@@ -88,7 +116,8 @@ JNeRF will support more valuable NeRF models in the future, if you are also inte
 - :heavy_check_mark: Instant-NGP
 - :heavy_check_mark: NeRF
 - :clock3: Mip-NeRF
-- :heavy_plus_sign: Plenoxels
+- :clock3: PaletteNeRF
+- :clock3: Plenoxels
 - :heavy_plus_sign: StylizedNeRF
 - :heavy_plus_sign: NeRF-Editing
 - :heavy_plus_sign: DrawingInStyles
@@ -102,13 +131,26 @@ JNeRF will support more valuable NeRF models in the future, if you are also inte
 
 ## Contact Us
 
+If you are interested in JNeRF or NeRF research and want to build the JNeRF community with us, contributing is very welcome, please contact us! 
+
 Email: jittor@qq.com
 
-File an issue: https://github.com/Jittor/jittor/issues
+JNeRF QQ Group: 689063884
 
-QQ Group: 761222083
+<img src="docs/jnerf_qrcode.jpg" width="200"/>
 
-<img src="docs/qrcode.jpg" width="200"/>
+If you have any questions about Jittor, you can [file an issue](https://github.com/Jittor/jittor/issues), or join our Jittor QQ Group: 761222083
+
+<img src="docs/jittor_qrcode.jpg" width="200"/>
+
+## Acknowledgements
+
+The original implementation comes from the following cool project:
+* [Instant-NGP](https://github.com/NVlabs/instant-ngp)
+* [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+* [Eigen](https://github.com/Tom94/eigen) ([homepage](https://eigen.tuxfamily.org/index.php?title=Main_Page))
+
+Their licenses can be seen at `licenses/`, many thanks for their nice work!
 
 
 ## Citation

@@ -48,6 +48,7 @@ class generate_grid_samples_nerf_nonuniform(Function):
         """)
         output[0].compile_options = proj_options
         output[0].sync()
+        output[1].sync()
         return output
 
 
