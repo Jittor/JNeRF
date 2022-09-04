@@ -95,3 +95,9 @@ class NGPNetworks(nn.Module):
             self.rgb_mlp.float16()
             self.pos_encoder.float16()
             self.dir_encoder.float16()
+    
+    def reset_intermediate(self):
+        self.rgb_mlp.func.forward_count = 0
+        self.rgb_mlp.func.output_intermediate = []
+        self.density_mlp.func.forward_count = 0
+        self.density_mlp.func.output_intermediate = []

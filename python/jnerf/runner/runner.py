@@ -66,17 +66,15 @@ class Runner():
             training_background_color = jt.random([rgb_target.shape[0],3]).stop_grad()
 
             rgb_target = (rgb_target[..., :3] * rgb_target[..., 3:] + training_background_color * (1 - rgb_target[..., 3:])).detach()
-
             pos, dir = self.sampler.sample(img_ids, rays_o, rays_d, is_training=True)
             network_outputs = self.model(pos, dir)
             rgb = self.sampler.rays2rgb(network_outputs, training_background_color)
-
             loss = self.loss_func(rgb, rgb_target)
             self.optimizer.step(loss)
             self.ema_optimizer.ema_step()
+            self.model.reset_intermediate()
             if self.using_fp16:
                 self.model.set_fp16()
-
             if i>0 and i%self.val_freq==0:
                 psnr=mse2psnr(self.val_img(i))
                 print("STEP={} | LOSS={} | VAL PSNR={}".format(i,loss.mean().item(), psnr))
@@ -224,6 +222,7 @@ class Runner():
             rgb,alpha = self.sampler.rays2rgb(network_outputs, inference=True)
             imgs[pixel:end] = rgb.numpy()
             alphas[pixel:end] = alpha.numpy()
+            self.model.reset_intermediate()
         imgs = imgs[:H*W].reshape(H, W, 3)
         alphas = alphas[:H*W].reshape(H, W, 1)
         imgs_tar=jt.array(self.dataset[dataset_mode].image_data[img_id]).reshape(H, W, 4)

@@ -19,7 +19,8 @@ class FullyFusedMlp_weight(jt.Function):
         self.max_dim = 0
         self.weights = weights
         self.width = 0
-        self.output_intermediate = None
+        self.output_intermediate = []
+        self.forward_count = 0
         con_weights = []
         self.code_path = pathlib.Path(__file__+"/../op_header").resolve()
         self.so_name = os.path.join(pathlib.Path(__file__+"/../op_header").resolve(), "fully_fused_mlp_function.o")
@@ -48,7 +49,9 @@ class FullyFusedMlp_weight(jt.Function):
         self.shapes = []
         self.dtypes = []
         assert a.shape[1] == self.weights[0].shape[0]
-        self.output_intermediate = None
+        # self.output_intermediate = None
+        if self.forward_count == 0:
+            self.output_intermediate = []
         cuda_src = f'''
         @alias(input, in0)
         @alias(weights, in1)
@@ -80,9 +83,11 @@ class FullyFusedMlp_weight(jt.Function):
             self.padded_input = jt.concat([a, jt.zeros((self.padded_shape0, a.shape[1])).float16()], 0)
         else:
             self.padded_input = self.input
-        self.outputs, self.output_intermediate = jt.code([(self.padded_input.shape[0], 16), (self.padded_input.shape[0] * (len(self.weights) - 1), self.width)], [a.dtype, a.dtype], [self.padded_input, con_weights], cuda_header=cuda_header, cuda_src=cuda_src)
+        self.outputs, self.output_intermediate_now = jt.code([(self.padded_input.shape[0], 16), (self.padded_input.shape[0] * (len(self.weights) - 1), self.width)], [a.dtype, a.dtype], [self.padded_input, con_weights], cuda_header=cuda_header, cuda_src=cuda_src)
+        self.output_intermediate.append(self.output_intermediate_now)
         self.outputs.compile_options = {f"FLAGS: -I{self.code_path} -Xlinker {self.so_name} ":1}
         self.con_weights = con_weights
+        self.forward_count += 1
         return self.outputs[:self.input.shape[0]]
 
     def grad(self, grads):
@@ -114,8 +119,10 @@ class FullyFusedMlp_weight(jt.Function):
             {need_last}
         );
         '''
-        output, grad_temps = jt.code([(self.padded_input.shape[0], self.input.shape[1]), ((len(self.weights)-1) * self.padded_input.shape[0],  self.width)], [self.input.dtype, self.input.dtype], [grads.transpose(), self.con_weights, self.output_intermediate], cuda_header=cuda_header, cuda_src=cuda_src)
+        output_intermediate = self.output_intermediate[self.forward_count - 1]
+        output, grad_temps = jt.code([(self.padded_input.shape[0], self.input.shape[1]), ((len(self.weights)-1) * self.padded_input.shape[0],  self.width)], [self.input.dtype, self.input.dtype], [grads.transpose(), self.con_weights, output_intermediate], cuda_header=cuda_header, cuda_src=cuda_src)
         output.compile_options = {f"FLAGS: -I{self.code_path} -Xlinker {self.so_name} ":1}
+        self.forward_count -= 1
         if self.check_mid == "1":
             self.grad_temps = grad_temps
         if not need_last:
@@ -130,18 +137,17 @@ class FullyFusedMlp_weight(jt.Function):
                 wt.append(new_weight.reshape(-1))
             elif i == len(self.weights) - 1:
                 if os.environ.get("FUSE_TRANSPOSE", "0") == "1":
-                    new_weight = jt.cublas.ops.cublas_acc_matmul(grads, self.output_intermediate[self.padded_input.shape[0] * (len(self.weights) - 2):], 1, 0)
+                    new_weight = jt.cublas.ops.cublas_acc_matmul(grads, output_intermediate[self.padded_input.shape[0] * (len(self.weights) - 2):], 1, 0)
                 else:
-                    new_weight = jt.cublas.ops.cublas_acc_matmul(self.output_intermediate[self.padded_input.shape[0] * (len(self.weights) - 2):], grads, 1, 0).transpose()
+                    new_weight = jt.cublas.ops.cublas_acc_matmul(output_intermediate[self.padded_input.shape[0] * (len(self.weights) - 2):], grads, 1, 0).transpose()
                 new_weight[self.output_shape1:,:] = 0
                 wt.append(new_weight.reshape(-1))
             else:
                 if os.environ.get("FUSE_TRANSPOSE", "0") == "1":
-                    new_weight = jt.cublas.ops.cublas_acc_matmul(grad_temps[self.padded_input.shape[0] * (len(self.weights) - 2 - i): self.padded_input.shape[0] * (len(self.weights) - 1 - i)], self.output_intermediate[self.padded_input.shape[0] * (len(self.weights) - 2 - i):self.padded_input.shape[0] * (len(self.weights) - 1 - i)], 1, 0)
+                    new_weight = jt.cublas.ops.cublas_acc_matmul(grad_temps[self.padded_input.shape[0] * (len(self.weights) - 2 - i): self.padded_input.shape[0] * (len(self.weights) - 1 - i)], output_intermediate[self.padded_input.shape[0] * (len(self.weights) - 2 - i):self.padded_input.shape[0] * (len(self.weights) - 1 - i)], 1, 0)
                 else:
-                    new_weight = jt.cublas.ops.cublas_acc_matmul(self.output_intermediate[self.padded_input.shape[0] * (len(self.weights) - 2 - i):self.padded_input.shape[0] * (len(self.weights) - 1 - i)], grad_temps[self.padded_input.shape[0] * (len(self.weights) - 2 - i): self.padded_input.shape[0] * (len(self.weights) - 1 - i)], 1, 0).transpose()
+                    new_weight = jt.cublas.ops.cublas_acc_matmul(output_intermediate[self.padded_input.shape[0] * (len(self.weights) - 2 - i):self.padded_input.shape[0] * (len(self.weights) - 1 - i)], grad_temps[self.padded_input.shape[0] * (len(self.weights) - 2 - i): self.padded_input.shape[0] * (len(self.weights) - 1 - i)], 1, 0).transpose()
                 wt.append(new_weight.reshape(-1))
-        
         return output[:self.input.shape[0]], jt.concat(wt, -1)
 
 if __name__ == "__main__":
