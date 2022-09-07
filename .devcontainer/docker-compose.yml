@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  jnerf:
+    image: jnerf-dev-container:latest
+    build:
+      context: ..
+      dockerfile: ./.devcontainer/Dockerfile
+    stdin_open: true
+    tty: true
+    volumes:
+      - ../:/volume
+    working_dir: /volume
+    command: /bin/bash
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]

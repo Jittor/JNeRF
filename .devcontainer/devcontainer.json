@@ -1,0 +1,10 @@
+{
+    "name": "JNeRF Dev Container",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "jnerf",
+    "workspaceFolder": "/volume",
+    "shutdownAction": "stopCompose",
+    "extensions": [
+        "ms-python.python"
+    ]
+}
