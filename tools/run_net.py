@@ -37,7 +37,7 @@ def main():
     
     args = parser.parse_args()
 
-    assert args.task in ["train","test","render"],f"{args.task} not support, please choose [train, test, render]"
+    assert args.task in ["train","test","render", "mesh"],f"{args.task} not support, please choose [train, test, render, mesh]"
     if args.config_file:
         init_cfg(args.config_file)
 
@@ -49,6 +49,8 @@ def main():
         runner.test(True)
     elif args.task == "render":
         runner.render(True, args.save_dir)
+    elif args.task == "mesh":
+        runner.mesh()
     
 if __name__ == "__main__":
     main()
