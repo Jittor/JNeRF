@@ -5,3 +5,7 @@ opencv-python
 Pillow
 imageio
 pyyaml
+PyMCubes
+trimesh
+plyfile
+open3d
