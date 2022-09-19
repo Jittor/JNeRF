@@ -5,3 +5,4 @@ opencv-python
 Pillow
 imageio
 pyyaml
+python/jnerf/dataset/pycolmap/
