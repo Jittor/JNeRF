@@ -11,7 +11,9 @@ from math import tan
 from tqdm import tqdm
 import numpy as np
 from jnerf.utils.registry import DATASETS
+from jnerf.utils.miputils import Rays, namedtuple_map
 from .dataset_util import *
+NERF_SCALE = 0.33
 
 @DATASETS.register_module()
 class NerfDataset():
@@ -111,8 +113,7 @@ class NerfDataset():
             self.n_images+=1
             matrix=np.array(frame['transform_matrix'],np.float32)[:-1, :]
             self.transforms_gpu.append(
-                            self.matrix_nerf2ngp(matrix, self.scale, self.offset))
-                           
+                            self.matrix_nerf2ngp(matrix, self.scale, self.offset))           
         self.resolution=[self.W,self.H]
         self.resolution_gpu=jt.array(self.resolution)
         metadata=np.empty([11],np.float32)
@@ -161,7 +162,8 @@ class NerfDataset():
         self.transforms_gpu=self.transforms_gpu.transpose(0,2,1)
         self.metadata=jt.array(self.metadata)
         if self.img_alpha and self.image_data.shape[-1]==3:
-            self.image_data=jt.concat([self.image_data,jt.ones(self.image_data.shape[:-1]+(1,))],-1).stop_grad()
+            self.image_data=jt.concat([self.image_data,jt.ones(self.image_data.shape[:-1]+(1,))],-1)
+        self.image_data = self.image_data.numpy()
         self.shuffle_index=jt.randperm(self.H*self.W*self.n_images).detach()
         jt.gc()
     
@@ -306,7 +308,7 @@ class MipNerfDataset():
             self.image_data = self.image_data[rand_idx]
             self.idx_now = 0
         img_ids = self.img_ids[self.idx_now:self.idx_now+self.batch_size, 0].int()
-        rays = namedtuple_map(lambda r:r[self.idx_now:self.idx_now+self.batch_size], self.rays)
+        rays = namedtuple_map(lambda r:jt.array(r[self.idx_now:self.idx_now+self.batch_size]), self.rays)
         rgb_target = self.image_data[self.idx_now:self.idx_now+self.batch_size]
         self.idx_now+=self.batch_size
         return img_ids, rays, rgb_target
@@ -369,7 +371,7 @@ class MipNerfDataset():
             self.n_images+=1
             matrix=np.array(frame['transform_matrix'],np.float32)[:-1, :]
             self.transforms_gpu.append(matrix)
-
+            break
         self.resolution=[self.W,self.H]
 
         def read_focal_length(resolution: int, axis: str):
@@ -419,7 +421,7 @@ class MipNerfDataset():
             rand_idx = jt.randperm(self.rays.origins.shape[0])
             self.img_ids = self.img_ids[rand_idx]
             self.rays = namedtuple_map(lambda r:r[rand_idx], self.rays)
-            self.image_data = self.image_data[rand_idx]
+            self.image_data = jt.array(self.image_data[rand_idx])
 
     # TODO(bydeng): Swap this function with a more flexible camera model.
     def _generate_rays(self):
@@ -450,13 +452,13 @@ class MipNerfDataset():
 
         ones = jt.ones_like(origins[..., :1])
         self.rays = Rays(
-            origins=origins,
-            directions=directions,
-            viewdirs=viewdirs,
-            radii=radii,
-            lossmult=ones,
-            near=ones * self.near,
-            far=ones * self.far)
+            origins=origins.numpy(),
+            directions=directions.numpy(),
+            viewdirs=viewdirs.numpy(),
+            radii=radii.numpy(),
+            lossmult=ones.numpy(),
+            near=(ones * self.near).numpy(),
+            far=(ones * self.far).numpy())
 
     def generate_rays_total_test(self, img_ids, H, W):
         """Generating rays for all testing images."""

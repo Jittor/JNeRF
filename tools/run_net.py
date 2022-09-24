@@ -7,7 +7,7 @@ from tqdm import tqdm
 import argparse
 import numpy as np
 import os
-from jnerf.runner import Runner 
+from jnerf.runner import Runner, MipRunner
 from jnerf.utils.config import init_cfg
 # jt.flags.gopt_disable=1
 jt.flags.use_cuda = 1
@@ -44,7 +44,7 @@ def main():
     if args.config_file:
         init_cfg(args.config_file)
 
-    runner = Runner()
+    runner = MipRunner()
 
     if args.task == "train":
         runner.train()
