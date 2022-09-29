@@ -287,9 +287,7 @@ class NerfDataset():
         R_t = self.transforms_gpu[:,:3,:3].permute(0, 2, 1)
         camera_pos = self.transforms_gpu.permute(0,2,1)[:,:3,3][:,None,None,:]
         # TODO: fix camera
-        print("rrr: ", R_t.shape, pos.shape)
         ref_pos = jt.linalg.einsum("nij,nbsj->nbsi", R_t, pos-camera_pos)
-        print(ref_pos.shape)
         uv_pos = ref_pos[..., :-1] / ref_pos[..., -1:] / self.pixel_scale
         uv_pos[..., 1] *= -1.0
         return jt.nn.grid_sample(self.encoded_image, uv_pos, align_corners=True, padding_mode="border")

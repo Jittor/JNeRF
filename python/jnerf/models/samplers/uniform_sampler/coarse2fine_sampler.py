@@ -53,12 +53,10 @@ class CoarseToFineSampler(nn.Module):
             _, z_vals = jt.argsort(jt.concat([z_vals, z_vals_], -1), -1)
             xyz_fine_sampled = rays_o.unsqueeze(1)+rays_d.unsqueeze(1)*z_vals.unsqueeze(2)
             self.z_vals = z_vals # save for rendering
-            print("fine: ", xyz_fine_sampled.shape)
             return xyz_fine_sampled, viewdirs, enc_dir
         else:
             warnings.warn("N_importance value is zero, coarse to fine sampler will return coarse sampled points")
             self.z_vals = z_vals
-            print("coarse: ", xyz_coarse_sampled.shape)
             return xyz_coarse_sampled, viewdirs, enc_dir
 
     def rays2rgb(self, network_outputs, training_background_color=None, inference=False):

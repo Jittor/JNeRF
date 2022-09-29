@@ -73,7 +73,7 @@ class PixelNeRF(nn.Module):
         # d => tensor(N_Rays, 3)
         # img_feature => tensor(N_References, C, N_Rays, N_Samples)
         n_ref, c, n_ray, n_sample = img_feature.shape
-        print(img_feature.shape, x.shape, d.shape)
+        # print(img_feature.shape, x.shape, d.shape)
         img_feature = img_feature.permute(0, 2, 3, 1)
         # x_encode = self.pos_encoder(x)
         # d_encode = self.dir_encoder(d)
@@ -82,7 +82,7 @@ class PixelNeRF(nn.Module):
         x_encode = PE(x, self.L_pos, self.w)
         d = jt.normalize(d, p=2.0, dim=-1)
         d_encode = PE(d, self.L_dir, self.w)
-        print("encode: ", d_encode.shape, x_encode.shape, x.shape)
+        # print("encode: ", d_encode.shape, x_encode.shape, x.shape)
         d_encode = d_encode.unsqueeze(dim=1).expand(x_encode[:, :, :3].shape)
         xd_input = jt.concat([x_encode, d_encode], dim=-1).unsqueeze(dim=0)
         # f is the output of MLP(x,d) => tensor(N_References, N_Rays, N_Samples, 512)

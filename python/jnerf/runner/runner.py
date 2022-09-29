@@ -220,8 +220,8 @@ class Runner():
                 rays_d = jt.concat(
                     [rays_d, jt.ones([end-H*W]+rays_d.shape[1:], rays_d.dtype)], dim=0)
 
-            pos, dir = self.sampler.sample(img_ids, rays_o, rays_d)
-            network_outputs = self.model(pos, dir)
+            pos, dir, enc_rgb = self.sampler.sample(img_ids, rays_o, rays_d, is_training=True)
+            network_outputs = self.model(enc_rgb, pos, dir)
             rgb,alpha = self.sampler.rays2rgb(network_outputs, inference=True)
             imgs[pixel:end] = rgb.numpy()
             alphas[pixel:end] = alpha.numpy()
