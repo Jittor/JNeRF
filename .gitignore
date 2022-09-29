@@ -6,3 +6,4 @@ python/build
 python/dist
 *.egg-info
 *.pkl
+python/jnerf/dataset/pycolmap

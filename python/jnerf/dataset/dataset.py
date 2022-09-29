@@ -10,13 +10,14 @@ from math import pi
 from math import tan
 from tqdm import tqdm
 import numpy as np
-from jnerf.utils.registry import DATASETS
+from jnerf.utils.config import get_cfg
+from jnerf.utils.registry import build_from_cfg, DATASETS, ENCODERS
 from .dataset_util import *
 
 @DATASETS.register_module()
 class NerfDataset():
 
-    def __init__(self,root_dir, batch_size, mode='train', H=0, W=0, correct_pose=[1,-1,-1], aabb_scale=None, scale=None, offset=None, img_alpha=True,to_jt=True, have_img=True, preload_shuffle=True):
+    def __init__(self, root_dir, batch_size, mode='train', H=0, W=0, correct_pose=[1,-1,-1], aabb_scale=None, scale=None, offset=None, img_alpha=True,to_jt=True, have_img=True, preload_shuffle=True, model_type="NGP"):
         self.root_dir=root_dir
         self.batch_size=batch_size
         self.preload_shuffle=preload_shuffle
@@ -24,6 +25,7 @@ class NerfDataset():
         self.W=W
         self.correct_pose = correct_pose
         self.aabb_scale = aabb_scale
+        self.model_type = model_type
         if scale is None:
             self.scale = NERF_SCALE
         else:
@@ -47,6 +49,9 @@ class NerfDataset():
         self.idx_now=0
         self.load_data()
         jt.gc()
+        if model_type == "Pixel":
+            self.preprocess_model = build_from_cfg(get_cfg().pre_encoder, ENCODERS)
+        self.preprocess()
         self.image_data = self.image_data.reshape(
             self.n_images, -1, 4).detach()
         # breakpoint()
@@ -112,7 +117,7 @@ class NerfDataset():
             matrix=np.array(frame['transform_matrix'],np.float32)[:-1, :]
             self.transforms_gpu.append(
                             self.matrix_nerf2ngp(matrix, self.scale, self.offset))
-                           
+            break  
         self.resolution=[self.W,self.H]
         self.resolution_gpu=jt.array(self.resolution)
         metadata=np.empty([11],np.float32)
@@ -140,6 +145,7 @@ class NerfDataset():
             focal_length = [y_fl, y_fl]
         else:
             raise RuntimeError("Couldn't read fov.")
+        self.pixel_scale = (self.W / 2) / focal_length[0]
         self.focal_lengths.append(focal_length)
         metadata[6]=focal_length[0]
         metadata[7]=focal_length[1]
@@ -264,3 +270,31 @@ class NerfDataset():
         matrix[:, 2] *= self.correct_pose[2]
         matrix[:, 3] = (matrix[:, 3] - offset) / scale
         return matrix
+
+    def preprocess(self):
+        if self.model_type == "Pixel":
+            with jt.no_grad():
+                print(self.image_data.shape)
+                self.encoded_image = self.preprocess_model(self.image_data[..., :3].permute(0,3,1,2))
+                print("encode shape: ", self.encoded_image.shape)
+    
+    @jt.no_grad()
+    def feature_matching(self, pos, rays_o, img_ids):
+        n_rays, n_samples, _ = pos.shape
+        pos = pos.unsqueeze(0).expand([self.n_images, n_rays, n_samples, 3])
+        # camera_pos = self.camera_pos[:, None, None, :]
+        # camera_pos = camera_pos.expand_as(pos)
+        R_t = self.transforms_gpu[:,:3,:3].permute(0, 2, 1)
+        camera_pos = self.transforms_gpu.permute(0,2,1)[:,:3,3][:,None,None,:]
+        # TODO: fix camera
+        print("rrr: ", R_t.shape, pos.shape)
+        ref_pos = jt.linalg.einsum("nij,nbsj->nbsi", R_t, pos-camera_pos)
+        print(ref_pos.shape)
+        uv_pos = ref_pos[..., :-1] / ref_pos[..., -1:] / self.pixel_scale
+        uv_pos[..., 1] *= -1.0
+        return jt.nn.grid_sample(self.encoded_image, uv_pos, align_corners=True, padding_mode="border")
+
+# class PixelNeRF(NerfDataset):
+#     def __init__(self, root_dir, batch_size, encoder, mode='train', H=0, W=0, correct_pose=[1,-1,-1], aabb_scale=None, scale=None, offset=None, img_alpha=True,to_jt=True, have_img=True, preload_shuffle=True):
+#         super().__init__(root_dir, batch_size, mode, H, W, correct_pose, aabb_scale, scale, offset, img_alpha,to_jt, have_img, preload_shuffle)
+#         # process image_data

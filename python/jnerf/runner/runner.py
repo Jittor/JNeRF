@@ -61,14 +61,13 @@ class Runner():
 
     def train(self):
         for i in tqdm(range(self.start, self.tot_train_steps)):
+            self.sampler.dataset = self.dataset["train"]
             self.cfg.m_training_step = i
             img_ids, rays_o, rays_d, rgb_target = next(self.dataset["train"])
             training_background_color = jt.random([rgb_target.shape[0],3]).stop_grad()
-
             rgb_target = (rgb_target[..., :3] * rgb_target[..., 3:] + training_background_color * (1 - rgb_target[..., 3:])).detach()
-
-            pos, dir = self.sampler.sample(img_ids, rays_o, rays_d, is_training=True)
-            network_outputs = self.model(pos, dir)
+            pos, dir, enc_rgb = self.sampler.sample(img_ids, rays_o, rays_d, is_training=True)
+            network_outputs = self.model(enc_rgb, pos, dir)
             rgb = self.sampler.rays2rgb(network_outputs, training_background_color)
 
             loss = self.loss_func(rgb, rgb_target)
@@ -84,6 +83,7 @@ class Runner():
         self.test()
     
     def test(self, load_ckpt=False):
+        self.sampler.dataset = self.dataset["test"]
         if load_ckpt:
             assert os.path.exists(self.ckpt_path), "ckpt file does not exist: "+self.ckpt_path
             self.load_ckpt(self.ckpt_path)
@@ -151,6 +151,7 @@ class Runner():
         self.ema_optimizer.steps=ckpt['ema_optimizer']['defaults']['steps']
         
     def val_img(self, iter):
+        self.sampler.dataset = self.dataset["val"]
         with jt.no_grad():
             img, _, img_tar= self.render_img(dataset_mode="val")
             self.save_img(self.save_path+f"/img{iter}.png", img)
