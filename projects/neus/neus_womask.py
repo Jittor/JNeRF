@@ -87,7 +87,7 @@ optim = dict(
     betas=(0.9,0.99),
 )
 
-base_exp_dir = './log/thin_cube/womask'
+base_exp_dir = './log_2/thin_cube/womask'
 recording = [ './','./models']
 
 learning_rate_alpha = 0.05

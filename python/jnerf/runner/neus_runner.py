@@ -109,7 +109,6 @@ class NeuSRunner:
             # Loss
             color_error = (color_fine - true_rgb) * mask
             color_fine_loss = color_error.abs().sum() / mask_sum
-            # psnr = 20.0 * jt.log2(1.0 / (((color_fine - true_rgb)**2 * mask).sum() / (mask_sum * 3.0)).sqrt()) / jt.log2(10) # not used
 
             eikonal_loss = gradient_error
 
@@ -165,7 +164,6 @@ class NeuSRunner:
     def load_checkpoint(self, checkpoint_name):
         checkpoint = jt.load(os.path.join(self.base_exp_dir, 'checkpoints', checkpoint_name))
         self.neus.load_state_dict(checkpoint['neus'])
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.iter_step = checkpoint['iter_step']
 
         logging.info('End')
@@ -173,7 +171,6 @@ class NeuSRunner:
     def save_checkpoint(self):
         checkpoint = {
             'neus': self.neus.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
             'iter_step': self.iter_step,
         }
 
@@ -195,6 +192,7 @@ class NeuSRunner:
 
         out_rgb_fine = []
         out_normal_fine = []
+        out_depth_fine = []
 
         for rays_o_batch, rays_d_batch in zip(rays_o, rays_d):
             near, far = self.dataset.near_far_from_sphere(rays_o_batch, rays_d_batch)
@@ -211,18 +209,33 @@ class NeuSRunner:
 
             if feasible('color_fine'):
                 out_rgb_fine.append(render_out['color_fine'].detach().numpy())
-            if feasible('gradients') and feasible('weights'):
+            
+            if feasible('gradients') and feasible('weights') and feasible('z_vals'):
                 n_samples = self.renderer.n_samples + self.renderer.n_importance
                 normals = render_out['gradients'] * render_out['weights'][:, :n_samples, None]
+                depths  = render_out['z_vals'] * (render_out['weights'][:, :n_samples])
+
                 if feasible('inside_sphere'):
                     normals = normals * render_out['inside_sphere'][..., None]
+                    depths  = depths * render_out['inside_sphere']
+
                 normals = normals.sum(dim=1).detach().numpy()
+                depths  = depths.sum(dim=1).detach().numpy()
+
                 out_normal_fine.append(normals)
+                out_depth_fine.append(depths)
+
             del render_out
 
         img_fine = None
         if len(out_rgb_fine) > 0:
             img_fine = (np.concatenate(out_rgb_fine, axis=0).reshape([H, W, 3, -1]) * 256).clip(0, 255)
+
+        depth_fine = None
+        if len(out_depth_fine) > 0:
+            depth_fine = np.concatenate(out_depth_fine, axis=0).reshape([H, W])
+            depth_fine = cv.applyColorMap(( depth_fine * 255 ).astype(np.uint8),cv.COLORMAP_JET)
+            depth_fine = depth_fine.reshape([H,W,3,1])
 
         normal_img = None
         if len(out_normal_fine) > 0:
@@ -230,9 +243,14 @@ class NeuSRunner:
             rot = np.linalg.inv(self.dataset.pose_all[idx, :3, :3].detach().numpy())
             normal_img = (np.matmul(rot[None, :, :], normal_img[:, :, None])
                           .reshape([H, W, 3, -1]) * 128 + 128).clip(0, 255)
+            
+            depth_fine = np.concatenate(out_depth_fine, axis=0).reshape([H, W])
+            depth_fine = cv.applyColorMap(( depth_fine * 255 ).astype(np.uint8),cv.COLORMAP_JET)
+            depth_fine = depth_fine.reshape([H,W,3,1])
 
         os.makedirs(os.path.join(self.base_exp_dir, 'validations_fine'), exist_ok=True)
         os.makedirs(os.path.join(self.base_exp_dir, 'normals'), exist_ok=True)
+        os.makedirs(os.path.join(self.base_exp_dir, 'depths'), exist_ok=True)
 
         for i in range(img_fine.shape[-1]):
             if len(out_rgb_fine) > 0:
@@ -246,6 +264,12 @@ class NeuSRunner:
                                         'normals',
                                         '{:0>8d}_{}_{}.png'.format(self.iter_step, i, idx)),
                            normal_img[..., i])
+
+            if len(out_depth_fine) > 0:
+                cv.imwrite(os.path.join(self.base_exp_dir,
+                                        'depths',
+                                        '{:0>8d}_{}_{}.png'.format(self.iter_step, i, idx)),
+                           depth_fine[..., i])
 
     def render_novel_image(self, idx_0, idx_1, ratio, resolution_level):
         """
