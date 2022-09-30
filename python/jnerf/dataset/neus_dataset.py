@@ -1,4 +1,4 @@
-import jittor
+import jittor as jt
 
 import cv2 as cv
 import numpy as np
@@ -71,15 +71,15 @@ class NeuSDataset:
             P = world_mat @ scale_mat
             P = P[:3, :4]
             intrinsics, pose = load_K_Rt_from_P(None, P)
-            self.intrinsics_all.append(jittor.Var(intrinsics).float())
-            self.pose_all.append(jittor.Var(pose).float())
+            self.intrinsics_all.append(jt.Var(intrinsics).float())
+            self.pose_all.append(jt.Var(pose).float())
 
-        self.images = jittor.Var(self.images_np.astype(np.float32))  # [n_images, H, W, 3]
-        self.masks  = jittor.Var(self.masks_np.astype(np.float32))   # [n_images, H, W, 3]
-        self.intrinsics_all = jittor.stack(self.intrinsics_all)   # [n_images, 4, 4]
-        self.intrinsics_all_inv = jittor.linalg.inv(self.intrinsics_all)  # [n_images, 4, 4]
+        self.images = jt.Var(self.images_np.astype(np.float32))  # [n_images, H, W, 3]
+        self.masks  = jt.Var(self.masks_np.astype(np.float32))   # [n_images, H, W, 3]
+        self.intrinsics_all = jt.stack(self.intrinsics_all)   # [n_images, 4, 4]
+        self.intrinsics_all_inv = jt.linalg.inv(self.intrinsics_all)  # [n_images, 4, 4]
         self.focal = self.intrinsics_all[0][0, 0]
-        self.pose_all = jittor.stack(self.pose_all)  # [n_images, 4, 4]
+        self.pose_all = jt.stack(self.pose_all)  # [n_images, 4, 4]
         self.H, self.W = self.images.shape[1], self.images.shape[2]
         self.image_pixels = self.H * self.W
 
@@ -94,26 +94,26 @@ class NeuSDataset:
 
         print('Load data: End')
 
-    def jittor_matmul(self,a,b):
+    def jt_matmul(self,a,b):
 
         h,w,_,_ = b.shape
         a = a.expand(h,w,1,1)
 
-        return jittor.matmul(a,b)
+        return jt.matmul(a,b)
 
     def gen_rays_at(self, img_idx, resolution_level=1):
         """
         Generate rays at world space from one camera.
         """
         l = resolution_level
-        tx = jittor.linspace(0, self.W - 1, self.W // l)
-        ty = jittor.linspace(0, self.H - 1, self.H // l)
-        pixels_x, pixels_y = jittor.meshgrid(tx, ty)
-        p = jittor.stack([pixels_x, pixels_y, jittor.ones_like(pixels_y)], dim=-1) # W, H, 3
-        p = self.jittor_matmul(self.intrinsics_all_inv[img_idx, None, None, :3, :3], p[:, :, :, None])  # W, H, 3
+        tx = jt.linspace(0, self.W - 1, self.W // l)
+        ty = jt.linspace(0, self.H - 1, self.H // l)
+        pixels_x, pixels_y = jt.meshgrid(tx, ty)
+        p = jt.stack([pixels_x, pixels_y, jt.ones_like(pixels_y)], dim=-1) # W, H, 3
+        p = self.jt_matmul(self.intrinsics_all_inv[img_idx, None, None, :3, :3], p[:, :, :, None])  # W, H, 3
         p = p.squeeze(dim=3)
-        rays_v = p / jittor.norm(p, p=2, dim=-1, keepdim=True, eps=1e-6)  # W, H, 3
-        rays_v = self.jittor_matmul(self.pose_all[img_idx, None, None, :3, :3], rays_v[:, :, :, None])  # W, H, 3
+        rays_v = p / jt.norm(p, p=2, dim=-1, keepdim=True, eps=1e-6)  # W, H, 3
+        rays_v = self.jt_matmul(self.pose_all[img_idx, None, None, :3, :3], rays_v[:, :, :, None])  # W, H, 3
         rays_v = rays_v.squeeze(dim=3)
         rays_o = self.pose_all[img_idx, None, None, :3, 3].expand(rays_v.shape)  # W, H, 3
         return rays_o.transpose(0, 1), rays_v.transpose(0, 1)
@@ -122,31 +122,31 @@ class NeuSDataset:
         """
         Generate random rays at world space from one camera.
         """
-        pixels_x = jittor.randint(low=0, high=self.W, shape=[batch_size])
-        pixels_y = jittor.randint(low=0, high=self.H, shape=[batch_size])
+        pixels_x = jt.randint(low=0, high=self.W, shape=[batch_size])
+        pixels_y = jt.randint(low=0, high=self.H, shape=[batch_size])
         color = self.images[img_idx].squeeze(dim=0)[(pixels_y, pixels_x)]    # batch_size, 3
         mask = self.masks[img_idx].squeeze(dim=0)[(pixels_y, pixels_x)]      # batch_size, 3
-        point = jittor.stack([pixels_x, pixels_y, jittor.ones_like(pixels_y)], dim=-1).float()  # batch_size, 3
+        point = jt.stack([pixels_x, pixels_y, jt.ones_like(pixels_y)], dim=-1).float()  # batch_size, 3
         bs = point.shape[0]
-        point = jittor.matmul(self.intrinsics_all_inv[img_idx, :3, :3].expand(bs,1,1), point[:, :, None]) # batch_size, 3
+        point = jt.matmul(self.intrinsics_all_inv[img_idx, :3, :3].expand(bs,1,1), point[:, :, None]) # batch_size, 3
         point = point.squeeze(dim=2)
-        rays_v = point / jittor.norm(point, p=2, dim=-1, keepdim=True, eps=1e-6)    # batch_size, 3
-        rays_v = jittor.matmul(self.pose_all[img_idx, :3, :3].expand(bs,1,1), rays_v[:, :, None])  # batch_size, 3
+        rays_v = point / jt.norm(point, p=2, dim=-1, keepdim=True, eps=1e-6)    # batch_size, 3
+        rays_v = jt.matmul(self.pose_all[img_idx, :3, :3].expand(bs,1,1), rays_v[:, :, None])  # batch_size, 3
         rays_v = rays_v.squeeze(dim=2)
         rays_o = self.pose_all[img_idx, None, :3, 3].expand(rays_v.shape).squeeze(dim=0) # batch_size, 3
-        return jittor.concat([rays_o, rays_v, color, mask[:, :1]], dim=-1)    # batch_size, 10
+        return jt.concat([rays_o, rays_v, color, mask[:, :1]], dim=-1)    # batch_size, 10
 
     def gen_rays_between(self, idx_0, idx_1, ratio, resolution_level=1):
         """
         Interpolate pose between two cameras.
         """
         l = resolution_level
-        tx = jittor.linspace(0, self.W - 1, self.W // l)
-        ty = jittor.linspace(0, self.H - 1, self.H // l)
-        pixels_x, pixels_y = jittor.meshgrid(tx, ty)
-        p = jittor.stack([pixels_x, pixels_y, jittor.ones_like(pixels_y)], dim=-1)  # W, H, 3
-        p = jittor.matmul(self.intrinsics_all_inv[0, None, None, :3, :3], p[:, :, :, None]).squeeze()  # W, H, 3
-        rays_v = p / jittor.norm(p, p=2, dim=-1, keepdim=True, eps=1e-6)  # W, H, 3
+        tx = jt.linspace(0, self.W - 1, self.W // l)
+        ty = jt.linspace(0, self.H - 1, self.H // l)
+        pixels_x, pixels_y = jt.meshgrid(tx, ty)
+        p = jt.stack([pixels_x, pixels_y, jt.ones_like(pixels_y)], dim=-1)  # W, H, 3
+        p = jt.matmul(self.intrinsics_all_inv[0, None, None, :3, :3], p[:, :, :, None]).squeeze()  # W, H, 3
+        rays_v = p / jt.norm(p, p=2, dim=-1, keepdim=True, eps=1e-6)  # W, H, 3
         trans = self.pose_all[idx_0, :3, 3] * (1.0 - ratio) + self.pose_all[idx_1, :3, 3] * ratio
         pose_0 = self.pose_all[idx_0].detach().cpu().numpy()
         pose_1 = self.pose_all[idx_1].detach().cpu().numpy()
@@ -163,15 +163,15 @@ class NeuSDataset:
         pose[:3, :3] = rot.as_matrix()
         pose[:3, 3] = ((1.0 - ratio) * pose_0 + ratio * pose_1)[:3, 3]
         pose = np.linalg.inv(pose)
-        rot = jittor.Var(pose[:3, :3])
-        trans = jittor.Var(pose[:3, 3])
-        rays_v = jittor.matmul(rot[None, None, :3, :3], rays_v[:, :, :, None]).squeeze()  # W, H, 3
+        rot = jt.Var(pose[:3, :3])
+        trans = jt.Var(pose[:3, 3])
+        rays_v = jt.matmul(rot[None, None, :3, :3], rays_v[:, :, :, None]).squeeze()  # W, H, 3
         rays_o = trans[None, None, :3].expand(rays_v.shape)  # W, H, 3
         return rays_o.transpose(0, 1), rays_v.transpose(0, 1)
 
     def near_far_from_sphere(self, rays_o, rays_d):
-        a = jittor.sum(rays_d**2, dim=-1, keepdims=True)
-        b = 2.0 * jittor.sum(rays_o * rays_d, dim=-1, keepdims=True)
+        a = jt.sum(rays_d**2, dim=-1, keepdims=True)
+        b = 2.0 * jt.sum(rays_o * rays_d, dim=-1, keepdims=True)
         mid = 0.5 * (-b) / a
         near = mid - 1.0
         far = mid + 1.0

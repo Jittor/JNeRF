@@ -14,7 +14,7 @@ from jnerf.dataset.neus_dataset import NeuSDataset
 from jnerf.models.networks.neus_network import RenderingNetwork, SDFNetwork, SingleVarianceNetwork, NeRF
 from jnerf.models.samplers.neus_render.renderer import NeuSRenderer
 
-import jittor
+import jittor as jt
 import jittor.nn as nn
 
 class NeuSRunner:
@@ -67,7 +67,7 @@ class NeuSRunner:
         params_to_train += list(self.deviation_network.parameters())
         params_to_train += list(self.color_network.parameters())
 
-        self.optimizer = jittor.optim.Adam(params_to_train, lr=self.learning_rate)
+        self.optimizer = jt.optim.Adam(params_to_train, lr=self.learning_rate)
 
         self.renderer = NeuSRenderer(self.nerf_outside,
                                      self.sdf_network,
@@ -107,12 +107,12 @@ class NeuSRunner:
 
             background_rgb = None
             if self.use_white_bkgd:
-                background_rgb = jittor.ones([1, 3])
+                background_rgb = jt.ones([1, 3])
 
             if self.mask_weight > 0.0:
                 mask = (mask > 0.5).float()
             else:
-                mask = jittor.ones_like(mask)
+                mask = jt.ones_like(mask)
 
             mask_sum = mask.sum() + 1e-5
             render_out = self.renderer.render(rays_o, rays_d, near, far,
@@ -129,11 +129,11 @@ class NeuSRunner:
             # Loss
             color_error = (color_fine - true_rgb) * mask
             color_fine_loss = color_error.abs().sum() / mask_sum
-            psnr = 20.0 * jittor.log2(1.0 / (((color_fine - true_rgb)**2 * mask).sum() / (mask_sum * 3.0)).sqrt()) / jittor.log2(10)
+            psnr = 20.0 * jt.log2(1.0 / (((color_fine - true_rgb)**2 * mask).sum() / (mask_sum * 3.0)).sqrt()) / jt.log2(10)
 
             eikonal_loss = gradient_error
 
-            mask_loss = jittor.nn.binary_cross_entropy_with_logits(weight_sum.safe_clip(1e-3, 1.0 - 1e-3), mask)
+            mask_loss = jt.nn.binary_cross_entropy_with_logits(weight_sum.safe_clip(1e-3, 1.0 - 1e-3), mask)
 
             loss = color_fine_loss +\
                 eikonal_loss * self.igr_weight +\
@@ -165,7 +165,7 @@ class NeuSRunner:
                 image_perm = self.get_image_perm()
 
     def get_image_perm(self):
-        return jittor.randperm(self.dataset.n_images)
+        return jt.randperm(self.dataset.n_images)
 
     def get_cos_anneal_ratio(self):
         if self.anneal_end == 0.0:
@@ -197,7 +197,7 @@ class NeuSRunner:
         copyfile(self.conf_path, os.path.join(self.base_exp_dir, 'recording', 'config.conf'))
 
     def load_checkpoint(self, checkpoint_name):
-        checkpoint = jittor.load(os.path.join(self.base_exp_dir, 'checkpoints', checkpoint_name))
+        checkpoint = jt.load(os.path.join(self.base_exp_dir, 'checkpoints', checkpoint_name))
         self.nerf_outside.load_state_dict(checkpoint['nerf'])
         self.sdf_network.load_state_dict(checkpoint['sdf_network_fine'])
         self.deviation_network.load_state_dict(checkpoint['variance_network_fine'])
@@ -218,7 +218,7 @@ class NeuSRunner:
         }
 
         os.makedirs(os.path.join(self.base_exp_dir, 'checkpoints'), exist_ok=True)
-        jittor.save(checkpoint, os.path.join(self.base_exp_dir, 'checkpoints', 'ckpt_{:0>6d}.pkl'.format(self.iter_step)))
+        jt.save(checkpoint, os.path.join(self.base_exp_dir, 'checkpoints', 'ckpt_{:0>6d}.pkl'.format(self.iter_step)))
 
     def validate_image(self, idx=-1, resolution_level=-1):
         if idx < 0:
@@ -238,7 +238,7 @@ class NeuSRunner:
 
         for rays_o_batch, rays_d_batch in zip(rays_o, rays_d):
             near, far = self.dataset.near_far_from_sphere(rays_o_batch, rays_d_batch)
-            background_rgb = jittor.ones([1, 3]) if self.use_white_bkgd else None
+            background_rgb = jt.ones([1, 3]) if self.use_white_bkgd else None
 
             render_out = self.renderer.render(rays_o_batch,
                                               rays_d_batch,
@@ -299,7 +299,7 @@ class NeuSRunner:
         out_rgb_fine = []
         for rays_o_batch, rays_d_batch in zip(rays_o, rays_d):
             near, far = self.dataset.near_far_from_sphere(rays_o_batch, rays_d_batch)
-            background_rgb = jittor.ones([1, 3]) if self.use_white_bkgd else None
+            background_rgb = jt.ones([1, 3]) if self.use_white_bkgd else None
 
             render_out = self.renderer.render(rays_o_batch,
                                               rays_d_batch,
@@ -316,8 +316,8 @@ class NeuSRunner:
         return img_fine
 
     def validate_mesh(self, world_space=False, resolution=64, threshold=0.0):
-        bound_min = jittor.float32(self.dataset.object_bbox_min)
-        bound_max = jittor.float32(self.dataset.object_bbox_max)
+        bound_min = jt.float32(self.dataset.object_bbox_min)
+        bound_max = jt.float32(self.dataset.object_bbox_max)
 
         vertices, triangles =\
             self.renderer.extract_geometry(bound_min, bound_max, resolution=resolution, threshold=threshold)

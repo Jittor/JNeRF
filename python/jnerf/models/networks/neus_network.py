@@ -1,4 +1,4 @@
-import jittor
+import jittor as jt
 import jittor.nn as nn
 
 import numpy as np
@@ -44,22 +44,22 @@ class SDFNetwork(nn.Module):
             if geometric_init:
                 if l == self.num_layers - 2:
                     if not inside_outside:
-                        lin.weight=jittor.nn.init.gauss_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(dims[l]), std=0.0001)
-                        lin.bias=jittor.nn.init.constant_(lin.bias, -bias)
+                        lin.weight=jt.nn.init.gauss_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(dims[l]), std=0.0001)
+                        lin.bias=jt.nn.init.constant_(lin.bias, -bias)
                     else:
-                        lin.weight=jittor.nn.init.gauss_(lin.weight, mean=-np.sqrt(np.pi) / np.sqrt(dims[l]), std=0.0001)
-                        lin.bias=jittor.nn.init.constant_(lin.bias, bias)
+                        lin.weight=jt.nn.init.gauss_(lin.weight, mean=-np.sqrt(np.pi) / np.sqrt(dims[l]), std=0.0001)
+                        lin.bias=jt.nn.init.constant_(lin.bias, bias)
                 elif multires > 0 and l == 0:
-                    lin.bias=jittor.nn.init.constant_(lin.bias, 0.0)
-                    lin.weight[:, 3:]=jittor.nn.init.constant_(lin.weight[:, 3:], 0.0)
-                    lin.weight[:, :3]=jittor.nn.init.gauss_(lin.weight[:, :3], 0.0, np.sqrt(2) / np.sqrt(out_dim))
+                    lin.bias=jt.nn.init.constant_(lin.bias, 0.0)
+                    lin.weight[:, 3:]=jt.nn.init.constant_(lin.weight[:, 3:], 0.0)
+                    lin.weight[:, :3]=jt.nn.init.gauss_(lin.weight[:, :3], 0.0, np.sqrt(2) / np.sqrt(out_dim))
                 elif multires > 0 and l in self.skip_in:
-                    lin.bias=jittor.nn.init.constant_(lin.bias, 0.0)
-                    lin.weight=jittor.nn.init.gauss_(lin.weight, 0.0, np.sqrt(2) / np.sqrt(out_dim))
-                    lin.weight[:, -(dims[0] - 3):]=jittor.nn.init.constant_(lin.weight[:, -(dims[0] - 3):], 0.0)
+                    lin.bias=jt.nn.init.constant_(lin.bias, 0.0)
+                    lin.weight=jt.nn.init.gauss_(lin.weight, 0.0, np.sqrt(2) / np.sqrt(out_dim))
+                    lin.weight[:, -(dims[0] - 3):]=jt.nn.init.constant_(lin.weight[:, -(dims[0] - 3):], 0.0)
                 else:
-                    lin.bias=jittor.nn.init.constant_(lin.bias, 0.0)
-                    lin.weight=jittor.nn.init.gauss_(lin.weight, 0.0, np.sqrt(2) / np.sqrt(out_dim))
+                    lin.bias=jt.nn.init.constant_(lin.bias, 0.0)
+                    lin.weight=jt.nn.init.gauss_(lin.weight, 0.0, np.sqrt(2) / np.sqrt(out_dim))
 
             # if weight_norm:
             #     lin = nn.utils.weight_norm(lin)
@@ -78,13 +78,13 @@ class SDFNetwork(nn.Module):
             lin = getattr(self, "lin" + str(l))
 
             if l in self.skip_in:
-                x = jittor.concat([x, inputs], 1) / np.sqrt(2)
+                x = jt.concat([x, inputs], 1) / np.sqrt(2)
 
             x = lin(x)
 
             if l < self.num_layers - 2:
                 x = self.activation(x)
-        return jittor.concat([x[:, :1] / self.scale, x[:, 1:]], dim=-1)
+        return jt.concat([x[:, :1] / self.scale, x[:, 1:]], dim=-1)
 
     def sdf(self, x):
         return self.execute(x)[:, :1]
@@ -95,7 +95,7 @@ class SDFNetwork(nn.Module):
     def gradient(self, x):
         
         y = self.sdf(x)
-        gradients = jittor.grad(
+        gradients = jt.grad(
             y,
             x,
             retain_graph=True)
@@ -150,11 +150,11 @@ class RenderingNetwork(nn.Module):
         rendering_input = None
 
         if self.mode == 'idr':
-            rendering_input = jittor.concat([points, view_dirs, normals, feature_vectors], dim=-1)
+            rendering_input = jt.concat([points, view_dirs, normals, feature_vectors], dim=-1)
         elif self.mode == 'no_view_dir':
-            rendering_input = jittor.concat([points, normals, feature_vectors], dim=-1)
+            rendering_input = jt.concat([points, normals, feature_vectors], dim=-1)
         elif self.mode == 'no_normal':
-            rendering_input = jittor.concat([points, view_dirs, feature_vectors], dim=-1)
+            rendering_input = jt.concat([points, view_dirs, feature_vectors], dim=-1)
 
         x = rendering_input
 
@@ -167,7 +167,7 @@ class RenderingNetwork(nn.Module):
                 x = self.relu(x)
 
         if self.squeeze_out:
-            x = jittor.sigmoid(x)
+            x = jt.sigmoid(x)
         return x
 
 
@@ -236,12 +236,12 @@ class NeRF(nn.Module):
             h = self.pts_linears[i](h)
             h = nn.relu(h)
             if i in self.skips:
-                h = jittor.concat([input_pts, h], -1)
+                h = jt.concat([input_pts, h], -1)
 
         if self.use_viewdirs:
             alpha = self.alpha_linear(h)
             feature = self.feature_linear(h)
-            h = jittor.concat([feature, input_views], -1)
+            h = jt.concat([feature, input_views], -1)
 
             for i, l in enumerate(self.views_linears):
                 h = self.views_linears[i](h)
@@ -256,7 +256,7 @@ class NeRF(nn.Module):
 class SingleVarianceNetwork(nn.Module):
     def __init__(self, init_val):
         super(SingleVarianceNetwork, self).__init__()
-        self.variance = jittor.Var(init_val)
+        self.variance = jt.Var(init_val)
 
     def execute(self, x):
-        return jittor.ones([len(x), 1]) * jittor.exp(self.variance * 10.0)
+        return jt.ones([len(x), 1]) * jt.exp(self.variance * 10.0)

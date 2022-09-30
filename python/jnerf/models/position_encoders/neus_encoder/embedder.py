@@ -1,4 +1,4 @@
-import jittor
+import jittor as jt
 import jittor.nn as nn
 
 
@@ -20,9 +20,9 @@ class Embedder:
         N_freqs = self.kwargs['num_freqs']
 
         if self.kwargs['log_sampling']:
-            freq_bands = 2. ** jittor.linspace(0., max_freq, N_freqs)
+            freq_bands = 2. ** jt.linspace(0., max_freq, N_freqs)
         else:
-            freq_bands = jittor.linspace(2.**0., 2.**max_freq, N_freqs)
+            freq_bands = jt.linspace(2.**0., 2.**max_freq, N_freqs)
 
         for freq in freq_bands:
             for p_fn in self.kwargs['periodic_fns']:
@@ -33,7 +33,7 @@ class Embedder:
         self.out_dim = out_dim
 
     def embed(self, inputs):
-        return jittor.concat([fn(inputs) for fn in self.embed_fns], -1)
+        return jt.concat([fn(inputs) for fn in self.embed_fns], -1)
 
 
 def get_embedder(multires, input_dims=3):
@@ -43,7 +43,7 @@ def get_embedder(multires, input_dims=3):
         'max_freq_log2': multires-1,
         'num_freqs': multires,
         'log_sampling': True,
-        'periodic_fns': [jittor.sin, jittor.cos],
+        'periodic_fns': [jt.sin, jt.cos],
     }
 
     embedder_obj = Embedder(**embed_kwargs)
