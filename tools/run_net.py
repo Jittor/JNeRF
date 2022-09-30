@@ -37,6 +37,11 @@ def main():
     )
 
     parser.add_argument(
+        "--type",
+        default="novel_view",
+        type=str,
+    )
+    parser.add_argument(
         "--mcube_threshold",
         default=0.0,
         type=float,
@@ -48,7 +53,12 @@ def main():
     if args.config_file:
         init_cfg(args.config_file)
 
-    runner = NeuSRunner()
+    if args.type == 'novel_view':
+        runner = Runner()
+    elif args.type == 'mesh':
+        runner = NeuSRunner()
+    else:
+        print('Not support yet!')
 
     if args.task == "train":
         runner.train()
@@ -56,6 +66,8 @@ def main():
         runner.test(True)
     elif args.task == "render":
         runner.render(True, args.save_dir)
-    
+    elif args.mode == 'validate_mesh':
+        runner.validate_mesh(world_space=True, resolution=512, threshold=args.mcube_threshold)
+
 if __name__ == "__main__":
     main()
