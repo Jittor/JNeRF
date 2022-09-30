@@ -90,10 +90,6 @@ class NeuSRunner:
             logging.info('Find checkpoint: {}'.format(latest_model_name))
             self.load_checkpoint(latest_model_name)
 
-        # # Backup codes and configs for debug
-        # if self.mode[:5] == 'train':
-        #     self.file_backup()
-
     def train(self):
         self.update_learning_rate()
         res_step = self.end_iter - self.iter_step
@@ -182,19 +178,6 @@ class NeuSRunner:
             learning_factor = (np.cos(np.pi * progress) + 1.0) * 0.5 * (1 - alpha) + alpha
         for g in self.optimizer.param_groups:
             g['lr'] = self.learning_rate * learning_factor
-
-    def file_backup(self):
-        dir_lis = self.conf['general.recording']
-        os.makedirs(os.path.join(self.base_exp_dir, 'recording'), exist_ok=True)
-        for dir_name in dir_lis:
-            cur_dir = os.path.join(self.base_exp_dir, 'recording', dir_name)
-            os.makedirs(cur_dir, exist_ok=True)
-            files = os.listdir(dir_name)
-            for f_name in files:
-                if f_name[-3:] == '.py':
-                    copyfile(os.path.join(dir_name, f_name), os.path.join(cur_dir, f_name))
-
-        copyfile(self.conf_path, os.path.join(self.base_exp_dir, 'recording', 'config.conf'))
 
     def load_checkpoint(self, checkpoint_name):
         checkpoint = jt.load(os.path.join(self.base_exp_dir, 'checkpoints', checkpoint_name))
@@ -330,28 +313,3 @@ class NeuSRunner:
         mesh.export(os.path.join(self.base_exp_dir, 'meshes', '{:0>8d}.ply'.format(self.iter_step)))
 
         logging.info('End')
-
-    def interpolate_view(self, img_idx_0, img_idx_1):
-        images = []
-        n_frames = 60
-        for i in range(n_frames):
-            print(i)
-            images.append(self.render_novel_image(img_idx_0,
-                                                  img_idx_1,
-                                                  np.sin(((i / n_frames) - 0.5) * np.pi) * 0.5 + 0.5,
-                          resolution_level=4))
-        for i in range(n_frames):
-            images.append(images[n_frames - i - 1])
-
-        fourcc = cv.VideoWriter_fourcc(*'mp4v')
-        video_dir = os.path.join(self.base_exp_dir, 'render')
-        os.makedirs(video_dir, exist_ok=True)
-        h, w, _ = images[0].shape
-        writer = cv.VideoWriter(os.path.join(video_dir,
-                                             '{:0>8d}_{}_{}.mp4'.format(self.iter_step, img_idx_0, img_idx_1)),
-                                fourcc, 30, (w, h))
-
-        for image in images:
-            writer.write(image)
-
-        writer.release()

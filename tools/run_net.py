@@ -34,6 +34,12 @@ def main():
         default="",
         type=str,
     )
+
+    parser.add_argument(
+        "--mcube_threshold",
+        default=0.0,
+        type=float,
+    )
     
     args = parser.parse_args()
 

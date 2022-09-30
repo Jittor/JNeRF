@@ -260,3 +260,4 @@ class SingleVarianceNetwork(nn.Module):
 
     def execute(self, x):
         return jt.ones([len(x), 1]) * jt.exp(self.variance * 10.0)
+
