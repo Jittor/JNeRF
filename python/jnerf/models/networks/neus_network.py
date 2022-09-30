@@ -104,8 +104,6 @@ class SDFNetwork(nn.Module):
         return gradients
 
 
-
-
 # This implementation is borrowed from IDR: https://github.com/lioryariv/idr
 class RenderingNetwork(nn.Module):
     def __init__(self,
@@ -261,3 +259,11 @@ class SingleVarianceNetwork(nn.Module):
     def execute(self, x):
         return jt.ones([len(x), 1]) * jt.exp(self.variance * 10.0)
 
+
+class NeuS(nn.Module):
+    def __init__(self,conf):
+        self.conf = conf
+        self.nerf_outside = NeRF(**self.conf['model.nerf'])
+        self.sdf_network = SDFNetwork(**self.conf['model.sdf_network'])
+        self.deviation_network = SingleVarianceNetwork(**self.conf['model.variance_network'])
+        self.color_network = RenderingNetwork(**self.conf['model.rendering_network'])

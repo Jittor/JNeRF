@@ -71,19 +71,16 @@ def sample_pdf(bins, weights, n_samples, det=False):
 
 class NeuSRenderer:
     def __init__(self,
-                 nerf,
-                 sdf_network,
-                 deviation_network,
-                 color_network,
+                 neus_network,
                  n_samples,
                  n_importance,
                  n_outside,
                  up_sample_steps,
                  perturb):
-        self.nerf = nerf
-        self.sdf_network = sdf_network
-        self.deviation_network = deviation_network
-        self.color_network = color_network
+        self.nerf = neus_network.nerf_outside
+        self.sdf_network = neus_network.sdf_network
+        self.deviation_network = neus_network.deviation_network
+        self.color_network = neus_network.color_network
         self.n_samples = n_samples
         self.n_importance = n_importance
         self.n_outside = n_outside

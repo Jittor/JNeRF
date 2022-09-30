@@ -11,7 +11,7 @@ from icecream import ic
 from tqdm import tqdm
 from pyhocon import ConfigFactory
 from jnerf.dataset.neus_dataset import NeuSDataset
-from jnerf.models.networks.neus_network import RenderingNetwork, SDFNetwork, SingleVarianceNetwork, NeRF
+from jnerf.models.networks.neus_network import NeuS
 from jnerf.models.samplers.neus_render.renderer import NeuSRenderer
 
 import jittor as jt
@@ -58,21 +58,12 @@ class NeuSRunner:
 
         # Networks
         params_to_train = []
-        self.nerf_outside = NeRF(**self.conf['model.nerf'])
-        self.sdf_network = SDFNetwork(**self.conf['model.sdf_network'])
-        self.deviation_network = SingleVarianceNetwork(**self.conf['model.variance_network'])
-        self.color_network = RenderingNetwork(**self.conf['model.rendering_network'])
-        params_to_train += list(self.nerf_outside.parameters())
-        params_to_train += list(self.sdf_network.parameters())
-        params_to_train += list(self.deviation_network.parameters())
-        params_to_train += list(self.color_network.parameters())
+        self.neus_network = NeuS(conf=self.conf)
+        params_to_train += list(self.neus_network.parameters())
 
         self.optimizer = jt.optim.Adam(params_to_train, lr=self.learning_rate)
 
-        self.renderer = NeuSRenderer(self.nerf_outside,
-                                     self.sdf_network,
-                                     self.deviation_network,
-                                     self.color_network,
+        self.renderer = NeuSRenderer(self.neus_network,
                                      **self.conf['model.neus_renderer'])
 
         # Load checkpoint
@@ -181,10 +172,7 @@ class NeuSRunner:
 
     def load_checkpoint(self, checkpoint_name):
         checkpoint = jt.load(os.path.join(self.base_exp_dir, 'checkpoints', checkpoint_name))
-        self.nerf_outside.load_state_dict(checkpoint['nerf'])
-        self.sdf_network.load_state_dict(checkpoint['sdf_network_fine'])
-        self.deviation_network.load_state_dict(checkpoint['variance_network_fine'])
-        self.color_network.load_state_dict(checkpoint['color_network_fine'])
+        self.neus.load_state_dict(checkpoint['neus'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.iter_step = checkpoint['iter_step']
 
@@ -192,10 +180,7 @@ class NeuSRunner:
 
     def save_checkpoint(self):
         checkpoint = {
-            'nerf': self.nerf_outside.state_dict(),
-            'sdf_network_fine': self.sdf_network.state_dict(),
-            'variance_network_fine': self.deviation_network.state_dict(),
-            'color_network_fine': self.color_network.state_dict(),
+            'neus': self.neus.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'iter_step': self.iter_step,
         }
@@ -299,6 +284,7 @@ class NeuSRunner:
         return img_fine
 
     def validate_mesh(self, world_space=False, resolution=64, threshold=0.0):
+
         bound_min = jt.float32(self.dataset.object_bbox_min)
         bound_max = jt.float32(self.dataset.object_bbox_max)
 
