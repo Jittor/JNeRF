@@ -14,57 +14,55 @@ from jnerf.dataset.neus_dataset import NeuSDataset
 from jnerf.models.networks.neus_network import NeuS
 from jnerf.models.samplers.neus_render.renderer import NeuSRenderer
 
+from jnerf.utils.config import init_cfg, get_cfg
+from jnerf.utils.registry import build_from_cfg,NETWORKS,SCHEDULERS,DATASETS,OPTIMS,SAMPLERS,LOSSES
+
 import jittor as jt
 import jittor.nn as nn
 
 class NeuSRunner:
-    def __init__(self, conf_path, mode='train', case='CASE_NAME', is_continue=False):
+    def __init__(self, mode='train', is_continue=False):
 
         # Configuration
-        self.conf_path = conf_path
-        f = open(self.conf_path)
-        conf_text = f.read()
-        conf_text = conf_text.replace('CASE_NAME', case)
-        f.close()
+        self.cfg = get_cfg()
 
-        self.conf = ConfigFactory.parse_string(conf_text)
-        self.conf['dataset.data_dir'] = self.conf['dataset.data_dir'].replace('CASE_NAME', case)
-        self.base_exp_dir = self.conf['general.base_exp_dir']
+        # basic
+        self.base_exp_dir = self.cfg.base_exp_dir
         os.makedirs(self.base_exp_dir, exist_ok=True)
-        self.dataset = NeuSDataset(self.conf['dataset'])
         self.iter_step = 0
 
         # Training parameters
-        self.end_iter = self.conf.get_int('train.end_iter')
-        self.save_freq = self.conf.get_int('train.save_freq')
-        self.report_freq = self.conf.get_int('train.report_freq')
-        self.val_freq = self.conf.get_int('train.val_freq')
-        self.val_mesh_freq = self.conf.get_int('train.val_mesh_freq')
-        self.batch_size = self.conf.get_int('train.batch_size')
-        self.validate_resolution_level = self.conf.get_int('train.validate_resolution_level')
-        self.learning_rate = self.conf.get_float('train.learning_rate')
-        self.learning_rate_alpha = self.conf.get_float('train.learning_rate_alpha')
-        self.use_white_bkgd = self.conf.get_bool('train.use_white_bkgd')
-        self.warm_up_end = self.conf.get_float('train.warm_up_end', default=0.0)
-        self.anneal_end = self.conf.get_float('train.anneal_end', default=0.0)
+        self.end_iter = self.cfg.end_iter
+        self.save_freq = self.cfg.save_freq
+        self.report_freq = self.cfg.report_freq
+        self.val_freq = self.cfg.val_freq
+        self.val_mesh_freq = self.cfg.val_mesh_freq
+        self.batch_size = self.cfg.batch_size
+        self.validate_resolution_level = self.cfg.validate_resolution_level
+        self.learning_rate = self.cfg.learning_rate
+        self.learning_rate_alpha = self.cfg.learning_rate_alpha
+        self.use_white_bkgd = self.cfg.use_white_bkgd
+        self.warm_up_end = self.cfg.warm_up_end
+        self.anneal_end = self.cfg.anneal_end
 
         # Weights
-        self.igr_weight = self.conf.get_float('train.igr_weight')
-        self.mask_weight = self.conf.get_float('train.mask_weight')
+        self.igr_weight = self.cfg.igr_weight
+        self.mask_weight = self.cfg.mask_weight
         self.is_continue = is_continue
         self.mode = mode
         self.model_list = []
         self.writer = None
 
+        self.dataset      = build_from_cfg(self.cfg.dataset, DATASETS)
+        self.neus_network = build_from_cfg(self.cfg.model, NETWORKS)
+        self.renderer     = build_from_cfg(self.cfg.render, SAMPLERS)
+        self.renderer.set_neus_network(self.neus_network)
+
         # Networks
         params_to_train = []
-        self.neus_network = NeuS(conf=self.conf)
         params_to_train += list(self.neus_network.parameters())
 
         self.optimizer = jt.optim.Adam(params_to_train, lr=self.learning_rate)
-
-        self.renderer = NeuSRenderer(self.neus_network,
-                                     **self.conf['model.neus_renderer'])
 
         # Load checkpoint
         latest_model_name = None

@@ -7,8 +7,9 @@ from tqdm import tqdm
 import argparse
 import numpy as np
 import os
-from jnerf.runner import Runner 
-from jnerf.utils.config import init_cfg
+from jnerf.runner import Runner,NeuSRunner
+from jnerf.utils.config import init_cfg, get_cfg
+from jnerf.utils.registry import build_from_cfg,NETWORKS,SCHEDULERS,DATASETS,OPTIMS,SAMPLERS,LOSSES
 # jt.flags.gopt_disable=1
 jt.flags.use_cuda = 1
 
@@ -47,7 +48,7 @@ def main():
     if args.config_file:
         init_cfg(args.config_file)
 
-    runner = Runner()
+    runner = NeuSRunner()
 
     if args.task == "train":
         runner.train()

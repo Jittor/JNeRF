@@ -6,6 +6,8 @@ import logging
 import mcubes
 from icecream import ic
 
+from jnerf.utils.config import get_cfg
+from jnerf.utils.registry import SAMPLERS
 
 def extract_fields(bound_min, bound_max, resolution, query_func):
     N = 64
@@ -68,24 +70,29 @@ def sample_pdf(bins, weights, n_samples, det=False):
 
     return samples
 
-
+@SAMPLERS.register_module()
 class NeuSRenderer:
     def __init__(self,
-                 neus_network,
                  n_samples,
                  n_importance,
                  n_outside,
                  up_sample_steps,
                  perturb):
-        self.nerf = neus_network.nerf_outside
-        self.sdf_network = neus_network.sdf_network
-        self.deviation_network = neus_network.deviation_network
-        self.color_network = neus_network.color_network
+        self.nerf = None
+        self.sdf_network = None
+        self.deviation_network = None
+        self.color_network = None
         self.n_samples = n_samples
         self.n_importance = n_importance
         self.n_outside = n_outside
         self.up_sample_steps = up_sample_steps
         self.perturb = perturb
+
+    def set_neus_network(self,neus_network):
+        self.nerf = neus_network.nerf_outside
+        self.sdf_network = neus_network.sdf_network
+        self.deviation_network = neus_network.deviation_network
+        self.color_network = neus_network.color_network
 
     def render_core_outside(self, rays_o, rays_d, z_vals, sample_dist, nerf, background_rgb=None):
         """

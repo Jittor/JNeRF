@@ -3,6 +3,7 @@ import jittor.nn as nn
 
 import numpy as np
 from jnerf.models.position_encoders.neus_encoder.embedder import get_embedder
+from jnerf.utils.registry import build_from_cfg, NETWORKS
 
 # This implementation is borrowed from IDR: https://github.com/lioryariv/idr
 class SDFNetwork(nn.Module):
@@ -259,11 +260,10 @@ class SingleVarianceNetwork(nn.Module):
     def execute(self, x):
         return jt.ones([len(x), 1]) * jt.exp(self.variance * 10.0)
 
-
+@NETWORKS.register_module()
 class NeuS(nn.Module):
-    def __init__(self,conf):
-        self.conf = conf
-        self.nerf_outside = NeRF(**self.conf['model.nerf'])
-        self.sdf_network = SDFNetwork(**self.conf['model.sdf_network'])
-        self.deviation_network = SingleVarianceNetwork(**self.conf['model.variance_network'])
-        self.color_network = RenderingNetwork(**self.conf['model.rendering_network'])
+    def __init__(self,nerf_network,sdf_network,variance_network,rendering_network):
+        self.nerf_outside = NeRF(**nerf_network)
+        self.sdf_network = SDFNetwork(**sdf_network)
+        self.deviation_network = SingleVarianceNetwork(**variance_network)
+        self.color_network = RenderingNetwork(**rendering_network)

@@ -8,6 +8,7 @@ from icecream import ic
 from scipy.spatial.transform import Rotation as Rot
 from scipy.spatial.transform import Slerp
 
+from jnerf.utils.registry import DATASETS
 
 # This function is borrowed from IDR: https://github.com/lioryariv/idr
 def load_K_Rt_from_P(filename, P=None):
@@ -33,20 +34,18 @@ def load_K_Rt_from_P(filename, P=None):
 
     return intrinsics, pose
 
-
+@DATASETS.register_module()
 class NeuSDataset:
-    def __init__(self, conf):
+    def __init__(self, dataset_dir, render_cameras_name, object_cameras_name):
         super(NeuSDataset, self).__init__()
         print('Load data: Begin')
 
-        self.conf = conf
+        self.data_dir = dataset_dir
+        self.render_cameras_name = render_cameras_name
+        self.object_cameras_name = object_cameras_name
 
-        self.data_dir = conf.get_string('data_dir')
-        self.render_cameras_name = conf.get_string('render_cameras_name')
-        self.object_cameras_name = conf.get_string('object_cameras_name')
-
-        self.camera_outside_sphere = conf.get_bool('camera_outside_sphere', default=True)
-        self.scale_mat_scale = conf.get_float('scale_mat_scale', default=1.1)
+        self.camera_outside_sphere = True #conf.get_bool('camera_outside_sphere', default=True)
+        self.scale_mat_scale = 1.1 #conf.get_float('scale_mat_scale', default=1.1)
 
         camera_dict = np.load(os.path.join(self.data_dir, self.render_cameras_name))
         self.camera_dict = camera_dict
