@@ -79,6 +79,7 @@ class Runner():
             if i>0 and i%self.val_freq==0:
                 psnr=mse2psnr(self.val_img(i))
                 print("STEP={} | LOSS={} | VAL PSNR={}".format(i,loss.mean().item(), psnr))
+            jt.display_memory_info()
         self.save_ckpt(os.path.join(self.save_path, "params.pkl"))
         self.test()
     

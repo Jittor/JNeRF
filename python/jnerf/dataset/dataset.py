@@ -42,6 +42,7 @@ class NerfDataset():
         self.n_images=0
         self.img_alpha=img_alpha# img RGBA or RGB
         self.to_jt=to_jt
+        self.train_views=1
         self.have_img=have_img
         self.compacted_img_data=[]# img_id ,rgba,ray_d,ray_o
         assert mode=="train" or mode=="val" or mode=="test"
@@ -98,7 +99,7 @@ class NerfDataset():
         frames=json_data['frames']
         if self.mode=="val":
             frames=frames[::10]
-
+        idx=0
         for frame in tqdm(frames):
             if self.have_img:
                 img_path=os.path.join(self.root_dir,frame['file_path'])
@@ -117,7 +118,9 @@ class NerfDataset():
             matrix=np.array(frame['transform_matrix'],np.float32)[:-1, :]
             self.transforms_gpu.append(
                             self.matrix_nerf2ngp(matrix, self.scale, self.offset))
-            break  
+            idx+=1
+            if idx==self.train_views and self.mode=="train":
+                break
         self.resolution=[self.W,self.H]
         self.resolution_gpu=jt.array(self.resolution)
         metadata=np.empty([11],np.float32)
@@ -275,7 +278,7 @@ class NerfDataset():
         if self.model_type == "Pixel":
             with jt.no_grad():
                 print(self.image_data.shape)
-                self.encoded_image = self.preprocess_model(self.image_data[..., :3].permute(0,3,1,2))
+                self.encoded_image = self.preprocess_model(self.image_data[..., :3].permute(0,3,1,2)).numpy()
                 print("encode shape: ", self.encoded_image.shape)
     
     @jt.no_grad()
@@ -290,7 +293,7 @@ class NerfDataset():
         ref_pos = jt.linalg.einsum("nij,nbsj->nbsi", R_t, pos-camera_pos)
         uv_pos = ref_pos[..., :-1] / ref_pos[..., -1:] / self.pixel_scale
         uv_pos[..., 1] *= -1.0
-        return jt.nn.grid_sample(self.encoded_image, uv_pos, align_corners=True, padding_mode="border")
+        return jt.nn.grid_sample(jt.array(self.encoded_image), uv_pos, align_corners=True, padding_mode="border")
 
 # class PixelNeRF(NerfDataset):
 #     def __init__(self, root_dir, batch_size, encoder, mode='train', H=0, W=0, correct_pose=[1,-1,-1], aabb_scale=None, scale=None, offset=None, img_alpha=True,to_jt=True, have_img=True, preload_shuffle=True):

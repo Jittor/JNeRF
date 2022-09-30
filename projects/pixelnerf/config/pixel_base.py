@@ -81,10 +81,10 @@ tot_train_steps = 200000
 background_color = [0, 0, 0]
 cone_angle_constant = 0.00390625
 near_distance = 0.2
-n_rays_per_batch = 512
+n_rays_per_batch = 256
 n_training_steps = 16
 # Expected number of sampling points per batch
-target_batch_size = 1<<18
+target_batch_size = 1<<15
 # Set const_dt=True for higher performance
 # Set const_dt=False for faster convergence
 const_dt=True
