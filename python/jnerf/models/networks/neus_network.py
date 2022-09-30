@@ -46,6 +46,7 @@ class SDFNetwork(nn.Module):
 
             lin = nn.Linear(dims[l], out_dim)
 
+            # strange init 
             if geometric_init:
                 if l == self.num_layers - 2:
                     if not inside_outside:
