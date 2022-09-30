@@ -2,18 +2,17 @@ import jittor as jt
 import jittor.nn as nn
 
 import numpy as np
-from jnerf.models.position_encoders.neus_encoder.embedder import get_embedder
-from jnerf.utils.registry import build_from_cfg, NETWORKS
+# from jnerf.models.position_encoders.neus_encoder.embedder import get_embedder
+from jnerf.utils.config import get_cfg
+from jnerf.utils.registry import build_from_cfg, NETWORKS, ENCODERS
 
 # This implementation is borrowed from IDR: https://github.com/lioryariv/idr
 class SDFNetwork(nn.Module):
     def __init__(self,
-                 d_in,
                  d_out,
                  d_hidden,
                  n_layers,
                  skip_in=(4,),
-                 multires=0,
                  bias=0.5,
                  scale=1,
                  geometric_init=True,
@@ -21,12 +20,16 @@ class SDFNetwork(nn.Module):
                  inside_outside=False):
         super(SDFNetwork, self).__init__()
 
+        self.cfg = get_cfg()
+        d_in = self.cfg.encoder.sdf_encoder.input_dims
+
         dims = [d_in] + [d_hidden for _ in range(n_layers)] + [d_out]
 
         self.embed_fn_fine = None
 
-        if multires > 0:
-            embed_fn, input_ch = get_embedder(multires, input_dims=d_in)
+        if self.cfg.encoder.sdf_encoder.multires > 0:
+            embed_fn = build_from_cfg(self.cfg.encoder.sdf_encoder, ENCODERS)
+            input_ch = embed_fn.out_dim
             self.embed_fn_fine = embed_fn
             dims[0] = input_ch
 
@@ -34,6 +37,7 @@ class SDFNetwork(nn.Module):
         self.skip_in = skip_in
         self.scale = scale
 
+        multires = self.cfg.encoder.sdf_encoder.multires
         for l in range(0, self.num_layers - 1):
             if l + 1 in self.skip_in:
                 out_dim = dims[l + 1] - dims[0]
@@ -110,22 +114,28 @@ class RenderingNetwork(nn.Module):
     def __init__(self,
                  d_feature,
                  mode,
-                 d_in,
                  d_out,
                  d_hidden,
                  n_layers,
                  weight_norm=True,
-                 multires_view=0,
                  squeeze_out=True):
         super().__init__()
+
+        self.cfg = get_cfg()
+
+        # default 
+        # nothing to do with encoder
+        d_in = 9
 
         self.mode = mode
         self.squeeze_out = squeeze_out
         dims = [d_in + d_feature] + [d_hidden for _ in range(n_layers)] + [d_out]
 
         self.embedview_fn = None
-        if multires_view > 0:
-            embedview_fn, input_ch = get_embedder(multires_view)
+        
+        if self.cfg.encoder.rendering_encoder.multires > 0:
+            embedview_fn = build_from_cfg(self.cfg.encoder.rendering_encoder, ENCODERS)
+            input_ch = embedview_fn.out_dim
             self.embedview_fn = embedview_fn
             dims[0] += (input_ch - 3)
 
@@ -175,32 +185,29 @@ class NeRF(nn.Module):
     def __init__(self,
                  D=8,
                  W=256,
-                 d_in=3,
-                 d_in_view=3,
-                 multires=0,
-                 multires_view=0,
                  output_ch=4,
                  skips=[4],
                  use_viewdirs=False):
         super(NeRF, self).__init__()
+
+        self.cfg = get_cfg()
+
         self.D = D
         self.W = W
-        self.d_in = d_in
-        self.d_in_view = d_in_view
+        self.d_in = self.cfg.encoder.nerf_pos_encoder.input_dims
+        self.d_in_view = self.cfg.encoder.nerf_dir_encoder.input_dims
         self.input_ch = 3
         self.input_ch_view = 3
         self.embed_fn = None
         self.embed_fn_view = None
 
-        if multires > 0:
-            embed_fn, input_ch = get_embedder(multires, input_dims=d_in)
-            self.embed_fn = embed_fn
-            self.input_ch = input_ch
+        if self.cfg.encoder.nerf_pos_encoder.multires > 0:
+            self.embed_fn = build_from_cfg(self.cfg.encoder.nerf_pos_encoder, ENCODERS)
+            self.input_ch = self.embed_fn.out_dim
 
-        if multires_view > 0:
-            embed_fn_view, input_ch_view = get_embedder(multires_view, input_dims=d_in_view)
-            self.embed_fn_view = embed_fn_view
-            self.input_ch_view = input_ch_view
+        if self.cfg.encoder.nerf_dir_encoder.multires > 0:
+            self.embed_fn_view = build_from_cfg(self.cfg.encoder.nerf_dir_encoder, ENCODERS)
+            self.input_ch_view = self.embed_fn_view.out_dim
 
         self.skips = skips
         self.use_viewdirs = use_viewdirs

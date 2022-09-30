@@ -15,26 +15,43 @@ dataset = dict(
     object_cameras_name = 'cameras_sphere.npz',
 )
 
+encoder = dict(
+    nerf_pos_encoder = dict(
+        type='FrequencyEncoder',
+        multires=10,
+        input_dims=4,
+    ),
+    nerf_dir_encoder = dict(
+        type='FrequencyEncoder',
+        multires=4,
+        input_dims=3,
+    ),
+    sdf_encoder = dict(
+        type='FrequencyEncoder',
+        multires=6,
+        input_dims=3,
+    ),
+    rendering_encoder = dict(
+        type='FrequencyEncoder',
+        multires=4,
+        input_dims=3,
+    ),
+)
+
 model = dict(
     type = 'NeuS',
     nerf_network = dict(
         D = 8,
-        d_in = 4,
-        d_in_view = 3,
         W = 256,
-        multires = 10,
-        multires_view = 4,
         output_ch = 4,
         skips=[4],
         use_viewdirs=True 
     ),
     sdf_network = dict(
         d_out = 257,
-        d_in = 3,
         d_hidden = 256,
         n_layers = 8,
         skip_in = [4],
-        multires = 6,
         bias = 0.5,
         scale = 1.0,
         geometric_init = True,
@@ -46,12 +63,10 @@ model = dict(
     rendering_network = dict(
         d_feature = 256,
         mode = 'idr',
-        d_in = 9,
         d_out = 3,
         d_hidden = 256,
         n_layers = 4,
         weight_norm = True,
-        multires_view = 4,
         squeeze_out = True,
     ), 
 )

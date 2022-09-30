@@ -1,5 +1,6 @@
 import os
 import jittor as jt
+import jittor.nn as nn
 from jittor import Function
 import numpy as np
 from jnerf.ops.code_ops.global_vars import global_headers,proj_options
@@ -7,7 +8,7 @@ from jnerf.utils.config import get_cfg
 from jnerf.utils.registry import ENCODERS
 
 @ENCODERS.register_module()
-class FrequencyEncoder(Function):
+class FrequencyEncoder(nn.Module):
     def __init__(self, multires, include_input = True, input_dims = 3, log_sampling = True, periodic_fns = [jt.sin, jt.cos]):
         self.cfg = get_cfg()
         self.using_fp16 = self.cfg.fp16
