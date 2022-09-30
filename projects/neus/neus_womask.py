@@ -65,10 +65,16 @@ render = dict(
     perturb = 1.0,
 )
 
+optim = dict(
+    type='Adam',
+    lr=5e-4,
+    eps=1e-15,
+    betas=(0.9,0.99),
+)
+
 base_exp_dir = './log/thin_cube/womask'
 recording = [ './','./models']
 
-learning_rate = 5e-4
 learning_rate_alpha = 0.05
 end_iter = 300000
 

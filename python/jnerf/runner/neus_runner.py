@@ -58,11 +58,8 @@ class NeuSRunner:
         self.renderer     = build_from_cfg(self.cfg.render, SAMPLERS)
         self.renderer.set_neus_network(self.neus_network)
 
-        # Networks
-        params_to_train = []
-        params_to_train += list(self.neus_network.parameters())
-
-        self.optimizer = jt.optim.Adam(params_to_train, lr=self.learning_rate)
+        self.learning_rate = self.cfg.optim.lr
+        self.optimizer = build_from_cfg(self.cfg.optim, OPTIMS, params=self.neus_network.parameters())
 
         # Load checkpoint
         latest_model_name = None
@@ -112,7 +109,7 @@ class NeuSRunner:
             # Loss
             color_error = (color_fine - true_rgb) * mask
             color_fine_loss = color_error.abs().sum() / mask_sum
-            psnr = 20.0 * jt.log2(1.0 / (((color_fine - true_rgb)**2 * mask).sum() / (mask_sum * 3.0)).sqrt()) / jt.log2(10)
+            # psnr = 20.0 * jt.log2(1.0 / (((color_fine - true_rgb)**2 * mask).sum() / (mask_sum * 3.0)).sqrt()) / jt.log2(10) # not used
 
             eikonal_loss = gradient_error
 
@@ -121,7 +118,6 @@ class NeuSRunner:
             loss = color_fine_loss +\
                 eikonal_loss * self.igr_weight +\
                 mask_loss * self.mask_weight
-
 
             self.optimizer.zero_grad()
             self.optimizer.backward(loss)
