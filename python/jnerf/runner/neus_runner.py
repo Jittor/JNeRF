@@ -163,14 +163,14 @@ class NeuSRunner:
 
     def load_checkpoint(self, checkpoint_name):
         checkpoint = jt.load(os.path.join(self.base_exp_dir, 'checkpoints', checkpoint_name))
-        self.neus.load_state_dict(checkpoint['neus'])
+        self.neus_network.load_state_dict(checkpoint['neus'])
         self.iter_step = checkpoint['iter_step']
 
         logging.info('End')
 
     def save_checkpoint(self):
         checkpoint = {
-            'neus': self.neus.state_dict(),
+            'neus': self.neus_network.state_dict(),
             'iter_step': self.iter_step,
         }
 
