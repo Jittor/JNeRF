@@ -91,6 +91,10 @@ Set the `--task` of the command to `render` to render demo video `demo.mp4` with
 python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --task render
 ```
 
+### Running other models
+
+Instructions of how to running other models are put in the contrib folder.
+
 ## Performance
 
 Instant-ngp implemented by JNeRF achieves similar performance and speed to the paper. The performance comparison can be seen in the table below and training speed of JNeRF-NGP on RTX 3090 is about 133 iters/s. 

@@ -6,5 +6,4 @@ python/build
 python/dist
 *.egg-info
 *.pkl
-
 log*/

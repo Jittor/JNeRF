@@ -1,9 +1,6 @@
 from ast import parse
 import jittor as jt
-# from train import Trainer
-# from model import NerfNetworks, HuberLoss
 from tqdm import tqdm
-# from utils.dataset import  NerfDataset
 import argparse
 import numpy as np
 import os
