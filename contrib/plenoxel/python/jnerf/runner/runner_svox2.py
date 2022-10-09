@@ -34,7 +34,6 @@ class Svox2Runner():
         else:
             self.dataset["val"] = self.dataset["train"]
         self.dataset["test"]    = None
-        # self.model              = build_from_cfg(self.cfg.model, NETWORKS)
         self.reso_list = self.cfg.reso_list
         reso_id = 0
 
@@ -55,7 +54,7 @@ class Svox2Runner():
         if self.cfg.ckpt_path and self.cfg.ckpt_path is not None:
             self.ckpt_path = self.cfg.ckpt_path
         else:
-            self.ckpt_path = os.path.join(self.save_path, "params.pkl")
+            self.ckpt_path = os.path.join(self.save_path, "ckpt.npz")
         if self.cfg.load_ckpt:
             self.load_ckpt(self.ckpt_path)
         else:
@@ -64,7 +63,7 @@ class Svox2Runner():
 
         self.cfg.m_training_step = 0
         self.val_freq = 4096
-        self.factor=1
+        self.factor = 1
 
 
 
@@ -139,8 +138,8 @@ class Svox2Runner():
                         if i % img_save_interval == 0:
                             img_pred = rgb_pred_test
                             img_pred=jt.clamp(img_pred,max_v=1.0)
-                            img_dir = f"/mnt/disk/lidongyang/project/svox2/JNeRF/outputs/"
-                            img_path = img_dir+f"{gstep_id_base:09d}"
+                            img_dir = self.save_path
+                            img_path = os.path.join(img_dir,f"{gstep_id_base:09d}")
                             if not os.path.exists(img_path):
                                 os.makedirs(img_path)
                             jt.save_image(img_pred.permute(2,0,1),img_path+f"/image_pred_{img_id:04d}.png")
@@ -199,7 +198,7 @@ class Svox2Runner():
                     stats['invsqr_mse'] += 1.0 / mse_num ** 2
                     self.optimizer.zero_grad()
                     self.optimizer.backward(mse)
-                    #TODO lr =1 assign
+            
                     self.optimizer.update_lr(lr_sigma,lr_sh,args.rms_beta,args.rms_beta)
                     
                     grad_density_data=grid.density_data.opt_grad(self.optimizer)
@@ -208,7 +207,6 @@ class Svox2Runner():
                     
                     
                     if (iter_id + 1) % args.print_every == 0:
-                        #TODO
                         # Print averaged stats
                         pbar.set_description(f'epoch {epoch_id} psnr={psnr:.2f}')
 
@@ -224,7 +222,6 @@ class Svox2Runner():
                     # Apply TV/Sparsity regularizers
             
                     if args.lambda_tv > 0.0:
-                        #TODO:
 
                         grad_density_data.assign(grid.inplace_tv_grad(grad_density_data,
                                 scaling=args.lambda_tv,
@@ -233,7 +230,6 @@ class Svox2Runner():
                                 ndc_coeffs=dset.ndc_coeffs,
                                 contiguous=args.tv_contiguous))
                     if args.lambda_tv_sh > 0.0:
-                        #TODO
                       
                         grad_sh_data.assign(grid.inplace_tv_color_grad(grad_sh_data,
                                 scaling=args.lambda_tv_sh,
@@ -285,12 +281,11 @@ class Svox2Runner():
             if gstep_id_base >= args.n_iters:
                 print('* Final eval and save')
                 eval_step()
-                grid.save("./outputs/ckpt.npz")
+                grid.save(self.ckpt_path)
                 break
-    
-    def test(self, load_ckpt=False):
 
-        self.ckpt_path="/mnt/disk/lidongyang/project/svox2/JNeRF/outputs/ckpt.npz"
+
+    def test(self, load_ckpt=False):  
         if load_ckpt:
             assert os.path.exists(self.ckpt_path), "ckpt file does not exist: "+self.ckpt_path
             self.load_ckpt(self.ckpt_path)
@@ -307,17 +302,10 @@ class Svox2Runner():
                 tot_psnr += mse2psnr(mse)
             print("TOTAL TEST PSNR===={}".format(tot_psnr/len(mse_list)))
 
-
-        
+       
     def save_ckpt(self, path):
-        jt.save({
-            'global_step': self.cfg.m_training_step,
-            'model': self.model.state_dict(),
-            'sampler': self.sampler.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'nested_optimizer': self.optimizer._nested_optimizer.state_dict(),
-            'ema_optimizer': self.ema_optimizer.state_dict(),
-        }, path)
+        self.model.save(path)
+
 
     def load_ckpt(self, path):
         print("Loading ckpt from:",path)
@@ -325,17 +313,7 @@ class Svox2Runner():
         self.model = SparseGrid.load(path)
         jt.sync_all(True)
 
-        
-        
-    def val_img(self, iter):
-        with jt.no_grad():
-            img, _, img_tar= self.render_img(dataset_mode="val")
-            self.save_img(self.save_path+f"/img{iter}.png", img)
-            self.save_img(self.save_path+f"/target{iter}.png", img_tar)
-            return img2mse(
-                jt.array(img), 
-                jt.array(img_tar)).item()
-    
+
     def render_test(self, save_img=True, save_path=None):
         if save_path is None:
             save_path = self.save_path
@@ -357,6 +335,7 @@ class Svox2Runner():
                 jt.array(img_tar)).item())
         return mse_list
 
+
     def save_img(self, path, img, alpha=None):
         if alpha is not None:
             img = np.concatenate([img, alpha], axis=-1)
@@ -366,6 +345,7 @@ class Svox2Runner():
             ndarr = (img*255+0.5).clamp(0, 255).uint8().numpy()
         im = Image.fromarray(ndarr)
         im.save(path)
+
 
     def render_img(self, dataset_mode="train", img_id=None):
         dset_test = self.dataset['test']
@@ -378,7 +358,7 @@ class Svox2Runner():
                         width=dset_test.get_image_size(img_id)[1],
                         height=dset_test.get_image_size(img_id)[0],
                         ndc_coeffs=dset_test.ndc_coeffs)
-        rgb_pred_test = self.model.volume_render_image(cam, use_kernel=True)
+        rgb_pred_test = self.model.volume_render_image(cam)
         rgb_gt_test = dset_test.gt[img_id]
         return rgb_pred_test, rgb_gt_test
 
