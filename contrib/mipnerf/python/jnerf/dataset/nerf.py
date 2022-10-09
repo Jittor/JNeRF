@@ -214,12 +214,12 @@ class Blenders(BaseDataset):
         if split == 'train':
             self._train_init()
             # # 初始打乱一下
-            # rand_idx = jt.randperm(self.rays.origins.shape[0])  # bs * iter 大于 n_images * h * w
-            # t3 = time.time()
-            # self.rays = namedtuple_map(lambda r: r[rand_idx], self.rays)
-            # self.images = self.images[rand_idx]
-            # t4 = time.time()
-            # print("shuffle data need time: {}s".format((t4 - t3)))
+            rand_idx = jt.randperm(self.rays.origins.shape[0])  # bs * iter 大于 n_images * h * w
+            t3 = time.time()
+            self.rays = namedtuple_map(lambda r: r[rand_idx], self.rays)
+            self.images = self.images[rand_idx]
+            t4 = time.time()
+            print("shuffle data need time: {}s".format((t4 - t3)))
         else:
             # for val and test phase, keep the image shape
             assert batch_type == 'single_image', 'The batch_type can only be single_image without flatten'
