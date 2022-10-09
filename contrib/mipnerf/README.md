@@ -1,0 +1,13 @@
+<!-- # JNeRF -->
+<div align="center">
+<img src="docs/logo.png" height="200"/>
+</div>
+
+## Introduction
+This is the JNeRF implementation of Mip-Nerf.
+
+## How to run mipnerf
+Please add  **JNeRF-mipnerf/python** to PYTHONPATH, then run the following command:
+```shell
+python tools/run_net.py --config-file ./projects/mipnerf/configs/mip_base.py
+```

@@ -32,9 +32,6 @@ net = PixelNeRF(img_f_ch)
 
 mse = jt.nn.MSELoss()
 optimizer = jt.optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0,)
-# hook = auto_diff.Hook("Pixel")
-# hook.hook_module(net)
-# hook.hook_optimizer(optimizer)
 net.load("/home/penghy/torch_pixel/tt.pth")
 print("Start Training!")
 for e in range(epoch):
