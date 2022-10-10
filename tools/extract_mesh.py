@@ -2,15 +2,28 @@ import open3d as o3d
 import jittor as jt
 import numpy as np
 import mcubes
+import os
+import argparse
 from plyfile import PlyData, PlyElement
 from jnerf.runner import Runner
 from jnerf.utils.config import init_cfg
 
 
 def mesh():
-    init_cfg('./projects/ngp/configs/ngp_base.py')
+    parser = argparse.ArgumentParser(description="Jittor Object Detection Training")
+    parser.add_argument(
+        "--config-file",
+        default="",
+        metavar="FILE",
+        help="path to config file",
+        type=str,
+    )
+    args = parser.parse_args()
+    if args.config_file:
+        init_cfg(args.config_file)
     runner = Runner()
     runner.load_ckpt(runner.ckpt_path)
+    mesh_dir = runner.save_path
     N = 256
     xmin, xmax = 0, 1
     ymin, ymax = 0, 1
@@ -42,8 +55,8 @@ def mesh():
     face['vertex_indices'] = triangles
     print("mesh origin generated mesh-origin.ply")
     PlyData([PlyElement.describe(vertices_[:, 0], 'vertex'),
-             PlyElement.describe(face, 'face')]).write(f'{"mesh-origin"}.ply')
-    mesh = o3d.io.read_triangle_mesh(f"{'mesh-origin'}.ply")
+             PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh-origin"}.ply'))
+    mesh = o3d.io.read_triangle_mesh(os.path.join(mesh_dir, f'{"mesh-origin"}.ply'))
     idxs, count, _ = mesh.cluster_connected_triangles()
     max_cluster_idx = np.argmax(count)
     triangles_to_remove = [i for i in range(len(face)) if idxs[i] != max_cluster_idx]
@@ -54,7 +67,7 @@ def mesh():
     vertices_ = np.asarray(mesh.vertices).astype(np.float32)
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
     PlyData([PlyElement.describe(vertices_[:, 0], 'vertex'), 
-            PlyElement.describe(face, 'face')]).write(f'{"mesh-denoise"}.ply')
+            PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh-denoise"}.ply'))
     print("mesh denoise generated mesh-denoise.ply")
     vertices_ = np.asarray(mesh.vertices).astype(np.float32)
     mesh.compute_vertex_normals()
@@ -104,7 +117,7 @@ def mesh():
     face = np.empty(len(mesh.triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = mesh.triangles
     PlyData([PlyElement.describe(vertex_all, 'vertex'),
-             PlyElement.describe(face, 'face')]).write(f'{"mesh-color"}.ply')
+             PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh-color"}.ply'))
     print("mesh color generated mesh-color.ply")
 
 
