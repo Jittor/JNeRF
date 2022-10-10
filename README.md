@@ -91,6 +91,13 @@ Set the `--task` of the command to `render` to render demo video `demo.mp4` with
 python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --task render
 ```
 
+### Extract Mesh with color
+
+After training, you can extract mesh with color from the pre-trained model :
+```
+python tools/extract_mesh.py --config-file ./projects/ngp/configs/ngp_base.py
+```
+
 ### Running other models
 
 Instructions of how to running other models are put in the contrib folder.
