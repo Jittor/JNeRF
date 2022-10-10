@@ -10,6 +10,7 @@ Update path in `JNeRF/projects/neus/configs/neus_womask.py`
 ```
 
 ...
+
 # Line 11-16
 dataset = dict(
 type = 'NeuSDataset',
@@ -24,6 +25,8 @@ object_cameras_name = 'cameras_sphere.npz',
 # Line 90
 # set base_exp_dir to the path where you want to save the results
 base_exp_dir = './log/thin_cube/womask'
+
+...
 
 ```
 
