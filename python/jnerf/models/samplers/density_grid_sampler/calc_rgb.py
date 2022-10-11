@@ -117,7 +117,8 @@ class CalcRgb(Function):
         self.n_rays_per_batch=rays_numsteps.shape[0]
         rgb_output = jt.empty([self.n_rays_per_batch, 3],'float32')
         alpha_output = jt.empty([self.n_rays_per_batch, 1],'float32')
-        rgb_output,alpha_output = jt.code(inputs=[network_output, coords_in, rays_numsteps], outputs=[rgb_output,alpha_output],
+        disp_output = jt.empty([self.n_rays_per_batch, 1],'float32')
+        rgb_output,alpha_output,disp_output = jt.code(inputs=[network_output, coords_in, rays_numsteps], outputs=[rgb_output,alpha_output,disp_output],
                              cuda_header=global_headers+self.density_grad_header+'#include"calc_rgb.h"', cuda_src=f"""
         #define grad_t in0_type
         @alias(network_output, in0)
@@ -125,6 +126,7 @@ class CalcRgb(Function):
         @alias(rays_numsteps,in2)
         @alias(rgb_output,out0)
         @alias(alpha_output,out1)
+        @alias(disp_output,out2)
  
 
         cudaStream_t stream=0;
@@ -140,9 +142,9 @@ class CalcRgb(Function):
         ENerfActivation rgb_activation=ENerfActivation({self.rgb_activation});
         ENerfActivation density_activation=ENerfActivation({self.density_activation});
         linear_kernel(compute_rgbs_inference<grad_t>, 0, stream,
-            n_rays, m_aabb,padded_output_width,bg_color,(grad_t*)network_output_p,rgb_activation,density_activation, PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),(uint32_t*)rays_numsteps_p,(Array3f*)rgb_output_p,NERF_CASCADES(),MIN_CONE_STEPSIZE(),alpha_output_p);      
+            n_rays, m_aabb,padded_output_width,bg_color,(grad_t*)network_output_p,rgb_activation,density_activation, PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),(uint32_t*)rays_numsteps_p,(Array3f*)rgb_output_p,NERF_CASCADES(),MIN_CONE_STEPSIZE(),alpha_output_p,disp_output_p);      
 """)
 
         rgb_output.compile_options = self.rgb_options
         rgb_output.sync()
-        return rgb_output,alpha_output
+        return rgb_output,alpha_output,disp_output

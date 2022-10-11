@@ -27,7 +27,7 @@ class RaySampler(Function):
         # rays index : store rays is used ( not for -1)
         # rays_numsteps [0:step,1:base]
         jt.init.zero_(self.ray_numstep_counter)
-        coords_out = jt.empty((self.num_elements, 7), 'float32')
+        coords_out = jt.empty((self.num_elements, 8), 'float32')
         self.n_rays_per_batch=rays_o.shape[0]
         rays_index = jt.empty((self.n_rays_per_batch, 1), 'int32')
         rays_numsteps = jt.empty((self.n_rays_per_batch, 2), 'int32')

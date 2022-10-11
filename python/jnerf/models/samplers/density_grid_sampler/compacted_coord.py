@@ -35,7 +35,7 @@ class CompactedCoord(Function):
         compacted_numstep_counter=jt.zeros([1],'int32')
         compacted_rays_counter=jt.zeros([1],'int32')
         rays_numsteps_compacted=jt.empty(rays_numsteps.shape,'int32')
-        coords_out=jt.zeros([self.compacted_elements,7],'float32')
+        coords_out=jt.zeros([self.compacted_elements,8],'float32')
         coords_out,rays_numsteps_compacted ,compacted_rays_counter,compacted_numstep_counter= jt.code(inputs=[ network_output, coords_in,rays_numsteps],outputs=[coords_out,rays_numsteps_compacted,compacted_rays_counter,compacted_numstep_counter], 
         cuda_header=global_headers+self.density_grad_header+'#include "compacted_coord.h"', cuda_src=f"""
         #define grad_t in0_type

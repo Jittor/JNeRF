@@ -547,10 +547,11 @@ struct NerfDirection
 
 struct NerfCoordinate
 {
-	NGP_HOST_DEVICE NerfCoordinate(const Eigen::Vector3f &pos, const Eigen::Vector3f &dir, float dt) : pos{pos, dt}, dt{dt}, dir{dir, dt} {}
-	NGP_HOST_DEVICE void set_with_optional_light_dir(const Eigen::Vector3f &pos, const Eigen::Vector3f &dir, float dt, const Eigen::Vector3f &light_dir, uint32_t stride_in_bytes)
+	NGP_HOST_DEVICE NerfCoordinate(const Eigen::Vector3f &pos, const Eigen::Vector3f &dir, float dt, float t) : pos{pos, dt}, dt{dt}, t{t}, dir{dir, dt} {}
+	NGP_HOST_DEVICE void set_with_optional_light_dir(const Eigen::Vector3f &pos, const Eigen::Vector3f &dir, float dt, float t,const Eigen::Vector3f &light_dir, uint32_t stride_in_bytes)
 	{
 		this->dt = dt;
+		this->t = t;
 		this->pos = NerfPosition(pos, dt);
 		this->dir = NerfDirection(dir, dt);
 
@@ -571,6 +572,7 @@ struct NerfCoordinate
 	NerfPosition pos;
 	float dt;
 	NerfDirection dir;
+	float t;
 };
 
 // struct NerfPayload

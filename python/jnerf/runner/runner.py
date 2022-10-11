@@ -111,14 +111,20 @@ class Runner():
         W, H = self.image_resolutions
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         videowriter = cv2.VideoWriter(save_path, fourcc, fps, (W, H))
+        videowriter_disp = cv2.VideoWriter(save_path.replace(".mp4","_disp.mp4"), fourcc, fps, (W, H))
         cam_path = camera_path.path_spherical()
 
         for pose in tqdm(cam_path):
-            img = self.render_img_with_pose(pose)
+            img, disp = self.render_img_with_pose(pose, True)
             img = (img*255+0.5).clip(0, 255).astype('uint8')
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             videowriter.write(img)
+            disp = (disp*255+0.5).clip(0, 255).astype('uint8')
+            disp = np.tile(disp,(1,1,3))
+            print("disp",disp.shape)
+            videowriter_disp.write(disp)
         videowriter.release()
+        videowriter_disp.release()
         
     def save_ckpt(self, path):
         jt.save({
@@ -221,7 +227,7 @@ class Runner():
 
             pos, dir = self.sampler.sample(img_ids, rays_o, rays_d)
             network_outputs = self.model(pos, dir)
-            rgb,alpha = self.sampler.rays2rgb(network_outputs, inference=True)
+            rgb,alpha,disp = self.sampler.rays2rgb(network_outputs, inference=True)
             imgs[pixel:end] = rgb.numpy()
             alphas[pixel:end] = alpha.numpy()
         imgs = imgs[:H*W].reshape(H, W, 3)
@@ -235,7 +241,7 @@ class Runner():
         jt.gc()
         return imgs, alphas, imgs_tar
 
-    def render_img_with_pose(self, pose):
+    def render_img_with_pose(self, pose, get_disp=False):
         W, H = self.image_resolutions
         H = int(H)
         W = int(W)
@@ -243,6 +249,7 @@ class Runner():
         rays_o_total, rays_d_total = self.dataset["train"].generate_rays_with_pose(pose, W, H)
         img = np.empty([H*W+self.n_rays_per_batch, 3])
         alpha = np.empty([H*W+self.n_rays_per_batch, 1])
+        disp = np.empty([H*W+self.n_rays_per_batch, 1])
         for pixel in range(0, W*H, self.n_rays_per_batch):
             end = pixel+self.n_rays_per_batch
             rays_o = rays_o_total[pixel:end]
@@ -254,11 +261,16 @@ class Runner():
                     [rays_d, jt.ones([end-H*W]+rays_d.shape[1:], rays_d.dtype)], dim=0)
             pos, dir = self.sampler.sample(fake_img_ids, rays_o, rays_d)
             network_outputs = self.model(pos, dir)
-            rgb,a = self.sampler.rays2rgb(network_outputs, inference=True)
+            rgb,a,d = self.sampler.rays2rgb(network_outputs, inference=True)
             img[pixel:end] = rgb.numpy()
             alpha[pixel:end] = a.numpy()
+            disp[pixel:end] = d.numpy()
         img = img[:H*W].reshape(H, W, 3)
         alpha = alpha[:H*W].reshape(H, W, 1)
+        disp = disp[:H*W].reshape(H, W, 1)
         if not self.alpha_image:
             img = img + np.array(self.background_color)*(1 - alpha)
-        return img
+        if get_disp:
+            return img, disp
+        else:
+            return img
