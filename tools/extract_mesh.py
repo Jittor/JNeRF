@@ -94,14 +94,16 @@ def mesh():
     img = []
     alpha = []
     for start in range(0, N_vertices, runner.n_rays_per_batch):
-        end = start + runner.n_rays_per_batch
-        rays_o = rays_o_total[start:end]
-        rays_d = dir_[start:end]
-        pos, dir = runner.sampler.sample(fake_img_ids, rays_o, rays_d)
-        network_outputs = runner.model(pos, dir)
-        rgb, a = runner.sampler.rays2rgb(network_outputs, inference=True)
-        img += [rgb]
-        alpha += [a]
+        with jt.no_grad():
+            end = start + runner.n_rays_per_batch
+            rays_o = rays_o_total[start:end]
+            rays_d = dir_[start:end]
+            pos, dir = runner.sampler.sample(fake_img_ids, rays_o, rays_d)
+            network_outputs = runner.model(pos, dir)
+            rgb, a = runner.sampler.rays2rgb(network_outputs, inference=True)
+            img += [rgb.numpy()]
+            alpha += [a.numpy()]
+            jt.gc()
     img = np.concatenate(img, 0)
     alpha = np.concatenate(alpha, 0)
     img = img + np.array(runner.background_color)*(1 - alpha)
