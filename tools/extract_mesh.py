@@ -24,7 +24,8 @@ def mesh():
     runner = Runner()
     runner.load_ckpt(runner.ckpt_path)
     mesh_dir = runner.save_path
-    N = 256
+    aabb_scale = runner.dataset["train"].aabb_scale
+    N = 512
     xmin, xmax = 0, 1
     ymin, ymax = 0, 1
     zmin, zmax = 0, 1
@@ -53,9 +54,9 @@ def mesh():
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
-    print("mesh origin generated mesh-origin.ply")
-    PlyData([PlyElement.describe(vertices_[:, 0], 'vertex'),
-             PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh-origin"}.ply'))
+    # print("mesh origin generated mesh-origin.ply")
+    # PlyData([PlyElement.describe(vertices_[:, 0], 'vertex'),
+    #          PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh-origin"}.ply'))
     mesh = o3d.io.read_triangle_mesh(os.path.join(mesh_dir, f'{"mesh-origin"}.ply'))
     idxs, count, _ = mesh.cluster_connected_triangles()
     max_cluster_idx = np.argmax(count)
@@ -66,9 +67,9 @@ def mesh():
     face['vertex_indices'] = mesh.triangles
     vertices_ = np.asarray(mesh.vertices).astype(np.float32)
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
-    PlyData([PlyElement.describe(vertices_[:, 0], 'vertex'), 
-            PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh-denoise"}.ply'))
-    print("mesh denoise generated mesh-denoise.ply")
+    # PlyData([PlyElement.describe(vertices_[:, 0], 'vertex'), 
+    #         PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh-denoise"}.ply'))
+    # print("mesh denoise generated mesh-denoise.ply")
     vertices_ = np.asarray(mesh.vertices).astype(np.float32)
     mesh.compute_vertex_normals()
     dir_ = np.asarray(mesh.vertex_normals)
@@ -85,7 +86,8 @@ def mesh():
 
     dir_ = jt.array(dir_)
     vertices_ = jt.array(vertices_)
-    rays_o_total = vertices_ - dir_ * 0.2
+    rays_o_total = vertices_ - dir_ * 0.1
+    rays_o_total = (rays_o_total-0.5)*aabb_scale+0.5
     W, H = runner.image_resolutions
     W = int(W)
     H = int(H)
@@ -119,8 +121,8 @@ def mesh():
     face = np.empty(len(mesh.triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = mesh.triangles
     PlyData([PlyElement.describe(vertex_all, 'vertex'),
-             PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh-color"}.ply'))
-    print("mesh color generated mesh-color.ply")
+             PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh"}.ply'))
+    print("mesh color generated mesh.ply")
 
 
 if __name__ == "__main__":
