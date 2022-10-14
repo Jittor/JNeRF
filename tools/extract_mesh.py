@@ -54,9 +54,9 @@ def mesh():
     vertices_.dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4')]
     face = np.empty(len(triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = triangles
-    # print("mesh origin generated mesh-origin.ply")
-    # PlyData([PlyElement.describe(vertices_[:, 0], 'vertex'),
-    #          PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh-origin"}.ply'))
+    PlyData([PlyElement.describe(vertices_[:, 0], 'vertex'),
+             PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh-origin"}.ply'))
+    print("mesh origin generated mesh-origin.ply")
     mesh = o3d.io.read_triangle_mesh(os.path.join(mesh_dir, f'{"mesh-origin"}.ply'))
     idxs, count, _ = mesh.cluster_connected_triangles()
     max_cluster_idx = np.argmax(count)
