@@ -99,5 +99,9 @@ class NGPNetworks(nn.Module):
     def reset_intermediate(self):
         self.rgb_mlp.func.forward_count = 0
         self.rgb_mlp.func.output_intermediate = []
+        self.rgb_mlp.func.input_list = []
+        self.rgb_mlp.func.input_shape_list = []
         self.density_mlp.func.forward_count = 0
         self.density_mlp.func.output_intermediate = []
+        self.density_mlp.func.input_list = []
+        self.density_mlp.func.input_shape_list = []
