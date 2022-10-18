@@ -26,24 +26,20 @@ JNeRF environment requirements:
   * to use fp16: sm arch >= sm_70 (TITAN V / V100 and above). JNeRF will automatically use original fp32 if the requirements are not meet.
   * to use FullyFusedMLP: sm arch >= sm_75 (RTX 20x0 and above). JNeRF will automatically use original MLPs if the requirements are not meet.
 
-**Step 1: Install the requirements**
-```shell
-sudo apt-get install tcl-dev tk-dev python3-tk
-git clone https://github.com/Jittor/JNeRF
-cd JNeRF
-python -m pip install -r requirements.txt
-```
-If you have any installation problems for Jittor, please refer to [Jittor](https://github.com/Jittor/jittor)
-
-**Step 2: Install JNeRF**
+**Install the requirements & JNeRF**
 
 JNeRF is a benchmark toolkit and can be updated frequently, so installing in editable mode is recommended.
 Thus any modifications made to JNeRF will take effect without reinstallation.
 
 ```shell
+sudo apt-get install tcl-dev tk-dev python3-tk
+git clone https://github.com/Jittor/JNeRF
+cd JNeRF
+python3.x -m pip install -r requirements.txt
 cd python
-python -m pip install -e .
+python3.x -m pip install -e .
 ```
+If you have any installation problems for Jittor, please refer to [Jittor](https://github.com/Jittor/jittor)
 
 After installation, you can ```import jnerf``` in python interpreter to check if it is successful or not.
 
