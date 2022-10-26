@@ -18,7 +18,6 @@ def mesh():
         help="path to config file",
         type=str,
     )
-    time0=time.time()
     args = parser.parse_args()
     if args.config_file:
         init_cfg(args.config_file)
@@ -102,7 +101,7 @@ def mesh():
 
     dir_ = jt.array(dir_)
     vertices_ = jt.array(vertices_)
-    rays_o_total = vertices_ - dir_ * 0.1
+    rays_o_total = vertices_ - dir_ * 0.2
     rays_o_total = (rays_o_total-0.5)*aabb_scale+0.5
     W, H = runner.image_resolutions
     W = int(W)
