@@ -18,14 +18,27 @@ def mesh():
         help="path to config file",
         type=str,
     )
+    parser.add_argument(
+        "--resolution",
+        type=int,
+        default=512,
+        help="resolution of space division"
+    )
+    parser.add_argument(
+        "--mcube_smooth",
+        type=bool,
+        default=False,
+        help="use pymcube.smooth function"
+    )
     args = parser.parse_args()
+    print(args)
     if args.config_file:
         init_cfg(args.config_file)
     runner = Runner()
     runner.load_ckpt(runner.ckpt_path)
     mesh_dir = runner.save_path
     aabb_scale = runner.dataset["train"].aabb_scale
-    N = 512
+    N = args.resolution
     xmin, xmax = 0, 1
     ymin, ymax = 0, 1
     zmin, zmax = 0, 1
@@ -58,7 +71,11 @@ def mesh():
             jt.gc()
     sigma = np.concatenate(rgbsigmas,0)
     sigma = sigma.reshape(N, N, N)
-    vertices, triangles = mcubes.marching_cubes(sigma, 0.5)
+    if args.mcube_smooth:
+        sigma = mcubes.smooth(sigma)
+        vertices, triangles = mcubes.marching_cubes(sigma, 0)
+    else:
+        vertices, triangles = mcubes.marching_cubes(sigma, 0.5)
 
     vertices_ = (vertices/N).astype(np.float32)
     x_ = (ymax - ymin) * vertices_[:, 1] + ymin

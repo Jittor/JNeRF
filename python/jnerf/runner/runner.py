@@ -112,13 +112,13 @@ class Runner():
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         videowriter = cv2.VideoWriter(save_path, fourcc, fps, (W, H))
         cam_path = camera_path.path_spherical()
-
-        for pose in tqdm(cam_path):
-            img = self.render_img_with_pose(pose)
-            img = (img*255+0.5).clip(0, 255).astype('uint8')
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            videowriter.write(img)
-        videowriter.release()
+        with jt.no_grad():
+            for pose in tqdm(cam_path):
+                img = self.render_img_with_pose(pose)
+                img = (img*255+0.5).clip(0, 255).astype('uint8')
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                videowriter.write(img)
+            videowriter.release()
         
     def save_ckpt(self, path):
         jt.save({
