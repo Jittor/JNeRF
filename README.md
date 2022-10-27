@@ -91,7 +91,7 @@ python tools/run_net.py --config-file ./projects/ngp/configs/ngp_base.py --task 
 
 After training, you can extract mesh with color from the pre-trained model, and the mesh model file `mesh.ply` will be saved in `./logs/lego/`:
 ```
-python tools/extract_mesh.py --config-file ./projects/ngp/configs/ngp_base.py
+python tools/extract_mesh.py --config-file ./projects/ngp/configs/ngp_base.py --resolution 512 --mcube_smooth False
 ```
 
 ### Running other models
