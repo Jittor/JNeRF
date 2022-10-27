@@ -32,12 +32,9 @@ JNeRF is a benchmark toolkit and can be updated frequently, so installing in edi
 Thus any modifications made to JNeRF will take effect without reinstallation.
 
 ```shell
-sudo apt-get install tcl-dev tk-dev python3-tk
 git clone https://github.com/Jittor/JNeRF
 cd JNeRF
-python3.x -m pip install -r requirements.txt
-cd python
-python3.x -m pip install -e .
+python3.x -m pip install --user -e .
 ```
 If you have any installation problems for Jittor, please refer to [Jittor](https://github.com/Jittor/jittor)
 
@@ -97,6 +94,19 @@ python tools/extract_mesh.py --config-file ./projects/ngp/configs/ngp_base.py --
 ### Running other models
 
 Instructions of how to running other models are put in the contrib folder.
+```
+contrib/
+|---mipnerf/
+|---pixelnerf/
+|---plenoxel/
+```
+
+### Running fox dataset
+
+run builtin fox dataset:
+```
+python3.x ./tools/run_net.py --config ./projects/ngp/configs/ngp_fox.py
+```
 
 ## Performance
 

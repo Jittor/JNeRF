@@ -4,7 +4,6 @@ import jittor.nn as nn
 import numpy as np
 import logging
 import mcubes
-from icecream import ic
 
 from jnerf.utils.config import get_cfg
 from jnerf.utils.registry import SAMPLERS

@@ -4,7 +4,6 @@ import cv2 as cv
 import numpy as np
 import os
 from glob import glob
-from icecream import ic
 from scipy.spatial.transform import Rotation as Rot
 from scipy.spatial.transform import Slerp
 
