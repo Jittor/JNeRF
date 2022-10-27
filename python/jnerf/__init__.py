@@ -9,3 +9,5 @@ from . import utils
 __version__ = '0.1.1.0'
 from jittor_utils import LOG
 LOG.i("JNeRF version ", __version__)
+import sys
+assert sys.platform == "linux", "Windows/MacOS is not supported yet, everyone is welcome to contribute to this"
