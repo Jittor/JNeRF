@@ -5,6 +5,7 @@ from math import pi, tan
 import numpy as np
 import jittor as jt
 import os
+import jittor_utils
 
 # const value define
 NERF_SCALE = 0.33
@@ -95,3 +96,14 @@ def viewmatrix(z, up, pos):
     vec1 = normalize(np.cross(vec2, vec0))
     m = np.stack([vec0, vec1, vec2, pos], 1)
     return m
+
+
+def download_dataset(dataname="lego", rootdir="./data/lego"):
+    '''
+        download lego dataset
+    '''
+    download_URL = "jittorhub://nerf_dataset_lego.zip"
+    download_URL=download_URL.replace("jittorhub://", "https://cg.cs.tsinghua.edu.cn/jittor/assets/build/checkpoints/")
+    jittor_utils.misc.download_url_to_local(download_URL, "lego.zip", "./data", None)
+    os.system("unzip ./data/lego.zip -d ./data/")
+    os.system("rm ./data/lego.zip")
