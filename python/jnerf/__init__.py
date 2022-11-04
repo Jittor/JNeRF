@@ -1,5 +1,5 @@
 
-__version__ = '0.1.2.0'
+__version__ = '0.1.3.0'
 from jittor import LOG
 import os
 dirname = os.path.dirname(__file__)
