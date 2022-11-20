@@ -91,7 +91,10 @@ class DensityGridSampler(nn.Module):
         self.dataset_ray_data = False  # 数据集是否包含光线信息
         
         header_path = os.path.join(os.path.dirname(__file__), 'op_header')
-        proj_options[f"FLAGS: -I{header_path}"]=1
+        if sys.platform == "linux":
+            proj_options[f"FLAGS: -I{header_path}"]=1
+        else:
+            proj_options[f'FLAGS: -I"{header_path}"']=1
 
         self.density_grad_header = f"""
         inline constexpr __device__ uint32_t NERF_GRIDSIZE() {{ return {self.NERF_GRIDSIZE}; }} // size of the density/occupancy grid.

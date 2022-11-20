@@ -7,3 +7,4 @@ python/dist
 *.egg-info
 *.pkl
 log*/
+*.bat
