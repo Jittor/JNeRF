@@ -39,15 +39,15 @@ if sys.platform == "linux":
 else:
     proj_options = { f'FLAGS: -I"{proj_path}/eigen" -I"{proj_path}/include" -I"{proj_path}/pcg32" -I"{proj_path}/../op_header" -DGLOBAL_VAR --extended-lambda --expt-relaxed-constexpr': 1 }
 
-# def start_up():
-with jt.profile_scope() as pr:
-    gv = jt.code([1], int, 
-        cuda_header=global_src, 
-        cuda_src="""
-        printf("ggg");
-    """)
-    gv.compile_options = proj_options
-    gv.sync()
+jt.profiler.start()
+gv = jt.code([1], int, 
+    cuda_header=global_src, 
+    cuda_src="""
+""")
+gv.compile_options = proj_options
+gv.sync()
+jt.profiler.stop()
 
-# start_up()
-proj_options[r'FLAGS: -l"C:\Users\penghy\.cache\jittor\jt1.3.5\cl\py3.8.13\Windows-10-10.xf5\12thGenIntelRCx5f\master\cu11.7.64\jit\code__IN_SIZE_0__OUT_SIZE_1__out0_dim_1__out0_type_int32__HEADER___include__pcg32_h__names___hash_f7de0131cfb188a9_op" '] = 1
+if os.name == "nt":
+    dll_name = jt.profiler.report()[-1][-10].replace(".cc", "")
+    proj_options[f'FLAGS: -l{dll_name} '] = 1

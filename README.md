@@ -13,7 +13,7 @@ JNeRF is an NeRF benchmark based on [Jittor](https://github.com/Jittor/jittor). 
 ## Install
 JNeRF environment requirements:
 
-* System: **Linux**(e.g. Ubuntu/CentOS/Arch), **macOS**, or **Windows Subsystem of Linux (WSL)**
+* System: **Linux**(e.g. Ubuntu/CentOS/Arch), **macOS**, **Windows**, or **Windows Subsystem of Linux (WSL)**
 * Python version >= 3.7
 * CPU compiler (require at least one of the following)
     * g++ (>=5.4.0)
