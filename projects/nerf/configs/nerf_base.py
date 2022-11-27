@@ -37,7 +37,7 @@ expdecay=dict(
     decay_end=None
 )
 dataset_type = 'NerfDataset'
-dataset_dir = r'C:\Users\penghy\Desktop\learn\gg\nerf_data\nerf_synthetic\lego'
+dataset_dir = 'data/lego'
 dataset = dict(
     train=dict(
         type=dataset_type,
