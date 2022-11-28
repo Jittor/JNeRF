@@ -133,8 +133,8 @@ class DensityGridSampler(nn.Module):
 
         self.measured_batch_size=jt.zeros([1],'int32')##rays batch sum
 
-    def sample(self, img_ids, rays_o, rays_d, rgb_target=None, is_training=False):
-        if is_training:
+    def sample(self, img_ids, rays_o, rays_d, rgb_target=None, is_training=False, update_dg=True):
+        if is_training and update_dg:
             if self.cfg.m_training_step%self.update_den_freq==0:
                 self.update_density_grid()
 
@@ -165,7 +165,42 @@ class DensityGridSampler(nn.Module):
         self._rays_numsteps = rays_numsteps.detach()
         self._rays_numsteps_compacted = rays_numsteps_compacted.detach()
         return coords_compacted[..., :3].detach(), coords_compacted[..., 4:].detach()
-    
+
+    def sample2(self, img_ids, rays_o, rays_d, rgb_target=None, is_training=False, first_sample=True):
+        if is_training and first_sample:
+            if self.cfg.m_training_step%self.update_den_freq==0:
+                self.update_density_grid()
+
+        coords, rays_index, rays_numsteps, rays_numsteps_counter = self.rays_sampler.execute(
+            rays_o=rays_o, rays_d=rays_d, density_grid_bitfield=self.density_grid_bitfield,
+            metadata=self.dataset.metadata, imgs_id=img_ids, xforms=self.dataset.transforms_gpu)
+        coords_pos = coords[...,  :3].detach()
+        coords_dir = coords[..., 4: ].detach()
+        if not is_training:
+            self._coords = coords.detach()
+            self._rays_numsteps = rays_numsteps.detach()
+            return coords_pos, coords_dir
+
+        if self.using_fp16:
+            with jt.flag_scope(auto_mixed_precision_level=5):
+                nerf_outputs = self.model(coords_pos, coords_dir).detach()
+                coords_compacted,rays_numsteps_compacted,compacted_numstep_counter=self.compacted_coords(nerf_outputs,coords,rays_numsteps)
+                if first_sample:
+                    self.measured_batch_size+=compacted_numstep_counter
+        else:
+            nerf_outputs = self.model(coords_pos, coords_dir).detach()
+            coords_compacted,rays_numsteps_compacted,compacted_numstep_counter=self.compacted_coords(nerf_outputs,coords,rays_numsteps)
+            if first_sample:
+                self.measured_batch_size+=compacted_numstep_counter
+        if is_training:
+            if self.cfg.m_training_step%self.update_den_freq==(self.update_den_freq-1):
+                self.update_batch_rays()
+        coords_compacted=coords_compacted.detach()
+        self._coords = coords_compacted.detach()
+        self._rays_numsteps = rays_numsteps.detach()
+        self._rays_numsteps_compacted = rays_numsteps_compacted.detach()
+        return coords_compacted[..., :3].detach(), coords_compacted[..., 4:].detach()
+
     def rays2rgb(self, network_outputs, training_background_color=None, inference=False):
         if self.using_fp16:
             with jt.flag_scope(auto_mixed_precision_level=5):
@@ -256,6 +291,7 @@ class DensityGridSampler(nn.Module):
         alpha = pow(self.density_grid_decay, self.n_training_steps / 16)
         n_cascades = self.max_cascade+1
         if self.cfg.m_training_step < 256:
+        # if self.cfg.m_training_step < 1024:
             self.update_density_grid_nerf(
                 alpha, self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*self.NERF_GRIDSIZE*n_cascades, 0)
         else:

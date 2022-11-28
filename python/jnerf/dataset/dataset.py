@@ -71,7 +71,7 @@ class NerfDataset():
         for root, dirs, files in os.walk(root_dir):
             for file in files:
                 if os.path.splitext(file)[1] == ".json":
-                    if self.mode in os.path.splitext(file)[0] or (self.mode=="train" and "val" in os.path.splitext(file)[0]):
+                    if self.mode in os.path.splitext(file)[0]:# or (self.mode=="train" and "val" in os.path.splitext(file)[0]):
                         json_paths.append(os.path.join(root, file))
         json_data=None
         ## get frames
@@ -93,6 +93,52 @@ class NerfDataset():
         frames=json_data['frames']
         if self.mode=="val":
             frames=frames[::10]
+        # else:
+        #     frames=frames[::10]
+        if False:
+            if self.mode=="train":
+                # nf=10
+                # np.random.seed(0)
+                # train_scene = np.random.choice(len(frames),nf)
+                # train_scene = range(0, len(frames), len(frames)//nf)[:nf]
+                # train_scene = [0,47,18,49,42,25,16,5,101,70]
+                # train_scene = [46 ,52 ,51 ,40 ,37 ,48 ,26 ,21 ,16 ,20 ,7 ,5] # 12 avg
+                # train_scene = [46 ,34 ,47 ,31 ,32 ,52 ,88 ,57 ,50 ,53 ,51 ,49 ,33 ,43 ,41 ,40 ,38 ,42 ,39 ,35 ,37 ,44 ,36 ,45 ,30 ,48 ,55 ,61 ,29 ,59 ,26 ,28 ,27 ,13 ,11 ,21 ,12 ,15 ,17 ,18 ,16 ,24 ,25 ,23 ,19 ,20 ,22 ,14 ,10 ,9 ,7 ,8 ,6 ,4 ,1 ,5 ,2 ,0 ,105 ,103]
+                # train_scene = [46 ,51 ,37 ,26 ,16 ,7]
+                # train_scene = [46 ,40 ,26 ,20]
+                # train_scene = [57 ,36 ,15 ,6]
+                # train_scene = [46 ,47 ,32 ,88 ,50 ,51 ,33 ,41 ,38 ,39 ,37 ,36 ,30 ,55 ,29 ,26 ,27 ,11 ,12 ,17 ,16 ,25 ,19 ,22 ,10 ,7 ,6 ,1 ,2 ,105]
+                # train_scene = [46 ,31 ,88 ,53 ,33 ,40 ,39 ,44 ,30 ,61 ,26 ,13 ,12 ,18 ,25 ,20 ,10 ,8 ,1 ,0]
+                # train_scene = [0, 4, 6, 3, 8] # tencent 12 avg
+
+                # train_scene = range(1,len(frames),2)
+                train_scene = []
+                for i in range(len(frames)):
+                    s=frames[i]['file_path'].split("_")[-1].split(".")[0]
+                    if int(s)%3==0:
+                        train_scene.append(i)
+                    # if int(s)!=16 and int(s)!=19 and int(s)!=35 and int(s)!=36 and int(s)!=37:
+                    #     train_scene.append(i)
+                
+                # start, end = 7, 97  # shoes 1
+                # # start, end = 5, 97  # shoes 7
+                # num = 20
+                # skip = (end-start)//num
+
+                # for i in range(len(frames)):
+                #     print(frames[i]['file_path'].split("/")[-1].split(".")[0])
+                #     id = int(frames[i]['file_path'].split("/")[-1].split(".")[0])
+                #     # if id<=76: # shoes 8
+                #     # if id<=100: # shoes 9
+                #     # if id%2==0:
+                #     if id>=start and id <=end and id%skip==0:
+                #         train_scene.append(i)
+                print("train_scene",train_scene)
+                sf = []
+                for i in train_scene:
+                    sf.append(frames[i])
+                frames=sf
+        # print("frames",len(frames))
 
         for frame in tqdm(frames):
             if self.have_img:

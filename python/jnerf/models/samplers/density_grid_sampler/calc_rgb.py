@@ -42,14 +42,18 @@ class CalcRgb(Function):
         self.rays_numsteps_compacted = rays_numsteps_compacted.detach()
         self.coords_in = coords_in.detach()
         self.n_rays_per_batch=rays_numsteps.shape[0]
-        rgb_output = jt.code((self.n_rays_per_batch, 3), 'float32',
+        rgb_output = jt.empty((self.n_rays_per_batch, 3), 'float32')
+        disp_output = jt.empty((self.n_rays_per_batch, 3), 'float32')
+        rgb_output, disp_output = jt.code(
                              inputs=[network_output, coords_in, rays_numsteps, rays_numsteps_compacted,training_background_color], 
+                             outputs = [rgb_output, disp_output],
                              cuda_header=global_headers+self.density_grad_header+'#include "calc_rgb.h"', cuda_src=f"""
         #define grad_t in0_type
         @alias(network_output, in0)
         @alias(coords_in, in1)
         @alias(rays_numsteps,in2)
         @alias(rgb_output,out0)
+        @alias(disp_output,out1)
         @alias(rays_numsteps_compacted,in3)
         @alias(training_background_color,in4)
         cudaStream_t stream=0;
@@ -64,15 +68,15 @@ class CalcRgb(Function):
 
         linear_kernel(compute_rgbs<grad_t>, 0,stream,
             n_rays, m_aabb,padded_output_width,(grad_t*)network_output_p,rgb_activation,density_activation,
-            PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),(uint32_t*)rays_numsteps_p,(Array3f*)rgb_output_p,(uint32_t*)rays_numsteps_compacted_p,(Array3f*)training_background_color_p,NERF_CASCADES(),MIN_CONE_STEPSIZE());   
+            PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),(uint32_t*)rays_numsteps_p,(Array3f*)rgb_output_p,(Array3f*)disp_output_p,(uint32_t*)rays_numsteps_compacted_p,(Array3f*)training_background_color_p,NERF_CASCADES(),MIN_CONE_STEPSIZE());   
 """)
 
         rgb_output.compile_options = self.rgb_options
         rgb_output.sync()
         self.rgb_output = rgb_output.detach()
-        return rgb_output
+        return rgb_output, disp_output
 
-    def grad(self, grad_x):
+    def grad(self, grad_x, grad_d):
        # return
        # dloss_doutput num_element x 4
         dloss_doutput = jt.code((self.num_elements, 4), self.grad_type,

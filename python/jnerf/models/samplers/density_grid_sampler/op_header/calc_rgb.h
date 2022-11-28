@@ -18,6 +18,7 @@ __global__ void compute_rgbs(
 	PitchedPtr<NerfCoordinate> coords_in,		//network input,(xyz,dt,dir)
 	uint32_t *__restrict__ numsteps_in,			//rays offset and base counter before compact
 	Array3f *rgb_output, 						//rays rgb output
+	Array3f *disp_output, 						//rays rgb output
 	uint32_t *__restrict__ numsteps_compacted_in,//rays offset and base counter after compact
 	const Array3f *bg_color_ptr,				//background color 
 	int NERF_CASCADES,							//num of density grid level
@@ -35,6 +36,7 @@ __global__ void compute_rgbs(
 	if (numsteps == 0)
 	{
 		rgb_output[i] = background_color;
+		disp_output[i] = Array3f::Zero();
 		return;
 	}
 	coords_in += base;
@@ -45,6 +47,8 @@ __global__ void compute_rgbs(
 	float EPSILON = 1e-4f;
 
 	Array3f rgb_ray = Array3f::Zero();
+	Array3f depth_ray = Array3f::Zero();
+	float acc = 0;
 
 	uint32_t compacted_numsteps = 0;
 	for (; compacted_numsteps < numsteps; ++compacted_numsteps)
@@ -59,11 +63,16 @@ __global__ void compute_rgbs(
 		const float alpha = 1.f - __expf(-density * dt);
 		const float weight = alpha * T;
 		rgb_ray += weight * rgb;
+		depth_ray[0] += weight * pos[0];
+		depth_ray[1] += weight * pos[1];
+		depth_ray[2] += weight * pos[2];
+		acc += weight;
 
 		T *= (1.f - alpha);
 		network_output += padded_output_width;
 		coords_in += 1;
 	}
+	depth_ray = acc/depth_ray;
 
 	if (compacted_numsteps == numsteps_in[i * 2 + 0])
 	{
@@ -71,6 +80,7 @@ __global__ void compute_rgbs(
 	}
 
 	rgb_output[i] = rgb_ray;
+	disp_output[i] = depth_ray;
 }
 
 template <typename TYPE>

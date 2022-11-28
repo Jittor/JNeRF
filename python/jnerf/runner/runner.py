@@ -41,6 +41,8 @@ class Runner():
         self.n_rays_per_batch   = self.cfg.n_rays_per_batch
         self.using_fp16         = self.cfg.fp16
         self.save_path          = os.path.join(self.cfg.log_dir, self.exp_name)
+        self.use_reg            = self.cfg.use_reg if self.cfg.use_reg is not None else False
+        self.use_rap            = self.cfg.use_rap if self.cfg.use_rap is not None else False
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
         if self.cfg.ckpt_path and self.cfg.ckpt_path is not None:
@@ -59,29 +61,138 @@ class Runner():
         self.W = self.image_resolutions[0]
         self.H = self.image_resolutions[1]
 
+    def transformyz(self, x, s, t):
+        trans = jt.stack([jt.cos(s)*jt.cos(t), -jt.sin(t), jt.cos(t)*jt.sin(s),
+                        jt.cos(s)*jt.sin(t), jt.cos(t), jt.sin(t)*jt.sin(s),
+                        -jt.sin(s), jt.zeros_like(s), jt.cos(s)]).reshape([3,3,-1]).transpose(2, 0, 1)
+        return (trans@x.unsqueeze(2)).squeeze(-1)
+
+    def get_trans_rst(self, origins, intersection_p):
+        xyz = origins - intersection_p
+        r = jt.norm(xyz, dim=-1)
+        s = jt.arccos(xyz[..., 2]/r)
+        t = jt.arctan2(xyz[..., 1], xyz[..., 0])
+        r = r.stop_grad()
+        s = s.stop_grad()
+        t = t.stop_grad()
+        return r, s, t
+
+    def get_trans_rst_dir(self, dir):
+        xyz = dir
+        r = jt.norm(xyz, dim=-1)
+        s = jt.arccos(xyz[..., 2]/r)
+        t = jt.arctan2(xyz[..., 1], xyz[..., 0])
+        r = r.stop_grad()
+        s = s.stop_grad()
+        t = t.stop_grad()
+        return r, s, t
+
+    def get_spherical_unit(self, bs, k=np.pi/6):
+        t = jt.init.uniform((bs,), low=-np.pi, high=np.pi)
+        s = jt.init.uniform((bs,), low=-k, high=k)
+        x = jt.sin(s)*jt.cos(t)
+        y = jt.sin(s)*jt.sin(t)
+        z = jt.cos(s)
+        return jt.stack([x, y, z])
+
+    def get_new_rays(self, ori, dir, intersection_p, foreground):
+        '''
+            old_rays: old rays
+            intersection_p : old rays hit object surface points
+        '''
+        batch_size=ori.shape[0]
+        r, s, t = self.get_trans_rst(ori, intersection_p)
+        new_dirs = self.get_spherical_unit(batch_size, k=np.pi/6).transpose(1, 0)
+        new_dirs = self.transformyz(new_dirs,s,t)
+        xyz = new_dirs*(r.unsqueeze(1))
+        new_origins = intersection_p+xyz*10.0
+        new_dirs = -new_dirs
+        # new_rays= Rays(origins=new_origins,directions=new_dirs*jt.linalg.norm(old_rays.directions, axis=-1, keepdims=True),viewdirs=new_dirs)
+        origins=new_origins
+        directions=new_dirs*jt.norm(dir, dim=-1, keepdim=True)
+        viewdirs=new_dirs
+        return origins, directions, viewdirs
+
+    def get_new_dir(self, dir):
+        batch_size=dir.shape[0]
+        r, s, t = self.get_trans_rst_dir(dir)
+        new_dirs = self.get_spherical_unit(batch_size, k=np.pi/6).transpose(1, 0)
+        new_dirs = self.transformyz(new_dirs,s,t)
+        return new_dirs
+
     def train(self):
         for i in tqdm(range(self.start, self.tot_train_steps)):
             self.cfg.m_training_step = i
             img_ids, rays_o, rays_d, rgb_target = next(self.dataset["train"])
             training_background_color = jt.random([rgb_target.shape[0],3]).stop_grad()
 
+            alpha=rgb_target[..., 3]
             rgb_target = (rgb_target[..., :3] * rgb_target[..., 3:] + training_background_color * (1 - rgb_target[..., 3:])).detach()
 
             pos, dir = self.sampler.sample(img_ids, rays_o, rays_d, is_training=True)
-            network_outputs = self.model(pos, dir)
-            rgb = self.sampler.rays2rgb(network_outputs, training_background_color)
+            use_reg = self.use_reg
+            use_rap = self.use_rap
+            if use_reg:
+                with jt.no_grad():
+                    sp=pos
+                    nnear = 9
+                    sp = sp.unsqueeze(1).repeat(1,nnear,1)
+                    sp = sp+(jt.random(sp.shape)-0.5)/20000.0
+                    sp = sp.reshape(-1,3)
+                    near_den = self.model.density(sp).reshape(-1,nnear,1).mean(1).numpy()
+                # near_den = self.model.density(pos).reshape(-1,pos.shape[0],1).numpy()
+                # near_den = near_den.mean(1).detach()
+                # print("near_den",near_den.shape)
+                # print("network_outputs",network_outputs.shape)
 
-            loss = self.loss_func(rgb, rgb_target)
+            network_outputs = self.model(pos, dir)
+            rgb, disp = self.sampler.rays2rgb(network_outputs, training_background_color)
+
+            loss_img = self.loss_func(rgb, rgb_target)
+            loss = loss_img
+            if i>4096 and use_reg:
+                loss_reg = jt.mean((network_outputs[:,-1:]-near_den)**2)
+                loss+=loss_reg*0.01
+                # if i%512==0:
+                #     print("loss",loss.mean(),"loss_reg",loss_reg.mean(),"loss_img",loss_img.mean())
+
             self.optimizer.step(loss)
             self.ema_optimizer.ema_step()
             if self.using_fp16:
                 self.model.set_fp16()
+            if use_rap and i>4096:
+                if False:
+                    foreground = jt.logical_and(alpha>0.9, disp.abs().min(-1)>1e-3)
+                    # foreground = jt.logical_and(alpha>0.9, disp.abs().max(-1)<1000)
+                    # foreground = jt.logical_and(foreground, disp.abs().max(-1)>1e-10)
 
+                    new_rays_o, new_rays_d, _ = self.get_new_rays(rays_o, rays_d, 1.0/disp, foreground)
+                    new_img_ids=img_ids[foreground].detach()
+                    new_rays_o=new_rays_o[foreground].detach()
+                    new_rays_d=new_rays_d[foreground].detach()
+                    new_rgb_target=rgb_target[foreground].detach()
+
+                    pos, dir = self.sampler.sample2(new_img_ids, new_rays_o, new_rays_d, is_training=True, first_sample=False)
+                    # pos, dir = self.sampler.sample(img_ids, rays_o, rays_d, is_training=True)
+                    network_outputs = self.model(pos, dir)
+                    rgb, disp = self.sampler.rays2rgb(network_outputs, training_background_color)
+                    loss = self.loss_func(rgb, new_rgb_target)
+                    # loss = self.loss_func(rgb, rgb_target)
+                else:
+                    new_dir = self.get_new_dir(dir)
+                    network_outputs = self.model(pos, new_dir)
+                    rgb, disp = self.sampler.rays2rgb(network_outputs, training_background_color)
+                    loss = self.loss_func(rgb, rgb_target)
+                self.optimizer.step(loss)
+                self.ema_optimizer.ema_step()
+                if self.using_fp16:
+                    self.model.set_fp16()
+            
             if i>0 and i%self.val_freq==0:
                 psnr=mse2psnr(self.val_img(i))
                 print("STEP={} | LOSS={} | VAL PSNR={}".format(i,loss.mean().item(), psnr))
         self.save_ckpt(os.path.join(self.save_path, "params.pkl"))
-        self.test()
+        # self.test()
     
     def test(self, load_ckpt=False):
         if load_ckpt:
@@ -107,17 +218,24 @@ class Runner():
         else:
             assert save_path.endswith(".mp4"), "suffix of save_path need to be .mp4"
         print("rendering video with specified camera path")
+        print(save_path)
         fps = 28
         W, H = self.image_resolutions
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         videowriter = cv2.VideoWriter(save_path, fourcc, fps, (W, H))
         cam_path = camera_path.path_spherical()
+        # cam_path = camera_path.path_spiral(self.dataset["train"].transforms_gpu, self.dataset["train"].focal_lengths)
 
+        if not os.path.exists(os.path.join(self.save_path, "render")):
+            os.makedirs(os.path.join(self.save_path, "render"))
+        i=0
         for pose in tqdm(cam_path):
             img = self.render_img_with_pose(pose)
             img = (img*255+0.5).clip(0, 255).astype('uint8')
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             videowriter.write(img)
+            cv2.imwrite(os.path.join(self.save_path, "render", str(i)+".jpg"), img)
+            i+=1
         videowriter.release()
         
     def save_ckpt(self, path):
@@ -261,4 +379,5 @@ class Runner():
         alpha = alpha[:H*W].reshape(H, W, 1)
         if not self.alpha_image:
             img = img + np.array(self.background_color)*(1 - alpha)
+        jt.gc()
         return img

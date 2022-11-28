@@ -75,7 +75,7 @@ class NGPNetworks(nn.Module):
         else:
             return self.execute_(pos_input, dir_input)
 
-    def execute_(self, pos_input, dir_input):  
+    def execute_(self, pos_input, dir_input): 
         dir_input = self.dir_encoder(dir_input)
         pos_input = self.pos_encoder(pos_input)
         density = self.density_mlp(pos_input)
