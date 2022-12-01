@@ -21,7 +21,7 @@ using namespace Eigen;
 #define NGP_PRAGMA_NO_UNROLL
 #endif
 
-#ifdef __NVCC__
+#if defined(__NVCC__) || defined(__ILUVATAR__)
 #define NGP_HOST_DEVICE __host__ __device__
 #else
 #define NGP_HOST_DEVICE

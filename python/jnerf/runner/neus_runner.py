@@ -7,9 +7,7 @@ import cv2 as cv
 import trimesh
 
 from shutil import copyfile
-from icecream import ic
 from tqdm import tqdm
-from pyhocon import ConfigFactory
 from jnerf.dataset.neus_dataset import NeuSDataset
 from jnerf.models.networks.neus_network import NeuS
 from jnerf.models.samplers.neus_render.renderer import NeuSRenderer

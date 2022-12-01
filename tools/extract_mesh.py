@@ -7,8 +7,8 @@ import argparse
 from plyfile import PlyData, PlyElement
 from jnerf.runner import Runner
 from jnerf.utils.config import init_cfg
-
-
+import time
+from tqdm import tqdm
 def mesh():
     parser = argparse.ArgumentParser(description="Jittor Object Detection Training")
     parser.add_argument(
@@ -18,33 +18,65 @@ def mesh():
         help="path to config file",
         type=str,
     )
+    parser.add_argument(
+        "--resolution",
+        type=int,
+        default=512,
+        help="resolution of space division"
+    )
+    parser.add_argument(
+        "--mcube_smooth",
+        type=bool,
+        default=False,
+        help="use pymcube.smooth function"
+    )
     args = parser.parse_args()
+    print(args)
     if args.config_file:
         init_cfg(args.config_file)
     runner = Runner()
     runner.load_ckpt(runner.ckpt_path)
     mesh_dir = runner.save_path
     aabb_scale = runner.dataset["train"].aabb_scale
-    N = 512
+    N = args.resolution
     xmin, xmax = 0, 1
     ymin, ymax = 0, 1
     zmin, zmax = 0, 1
-    x = jt.linspace(xmin, xmax, N)
+    xyz_chunk = 512*512*512
+    step = max(min(xyz_chunk//(N*N),N),1)
+    assert N%step==0
+    rgbsigmas=[]
     y = jt.linspace(ymin, ymax, N)
     z = jt.linspace(zmin, zmax, N)
-    xyz_ = jt.stack(jt.meshgrid(x, y, z), -1).reshape(-1, 3)
-    dir_ = jt.zeros_like(xyz_)
-    with jt.no_grad():
-        B = xyz_.shape[0]
-        out_chunks = []
-        for i in range(0, B, runner.n_rays_per_batch*128):
-            out_chunks += [runner.model(xyz_[i:i + runner.n_rays_per_batch*128], dir_[i:i + runner.n_rays_per_batch*128]).numpy()]
-        rgbsigma = np.concatenate(out_chunks, 0)
-    sigma = rgbsigma[:, -1]
-    sigma = np.maximum(sigma, 0)
+    for k in range(0,N,step):
+        rg = (xmax-xmin)/(N-1)
+        start = xmin+rg*k
+        end = xmin+rg*(k+step-1)
+        x = jt.linspace(start, end, step)
+        xyz = jt.stack(jt.meshgrid(x, y, z), -1).reshape(-1, 3)
+        xyz_ = xyz
+        dir_ = jt.zeros_like(xyz_)
+        with jt.no_grad():
+            B = xyz_.shape[0]
+            out_chunks = []
+            for i in range(0, B, runner.n_rays_per_batch*128):
+                pos=xyz_[i:i + runner.n_rays_per_batch*128]
+                dir=dir_[i:i + runner.n_rays_per_batch*128]
+                out_chunks += [runner.model(pos, dir)[:,-1]]
+            jt.sync_all(True)
+            out_chunks = jt.concat(out_chunks,0)
+            sigma0 = jt.maximum(out_chunks,0).int()
+            rgbsigmas.append(sigma0.numpy())
+            jt.sync_all(True)
+            jt.gc()
+    sigma = np.concatenate(rgbsigmas,0)
     sigma = sigma.reshape(N, N, N)
-    sigma = sigma.astype(int)
-    vertices, triangles = mcubes.marching_cubes(sigma, 0.5)
+    if args.mcube_smooth:
+        sigma = mcubes.smooth(sigma)
+        vertices, triangles = mcubes.marching_cubes(sigma, 0)
+    else:
+        vertices, triangles = mcubes.marching_cubes(sigma, 0.5)
+
     vertices_ = (vertices/N).astype(np.float32)
     x_ = (ymax - ymin) * vertices_[:, 1] + ymin
     y_ = (xmax - xmin) * vertices_[:, 0] + xmin
@@ -86,7 +118,7 @@ def mesh():
 
     dir_ = jt.array(dir_)
     vertices_ = jt.array(vertices_)
-    rays_o_total = vertices_ - dir_ * 0.1
+    rays_o_total = vertices_ - dir_ * 0.2
     rays_o_total = (rays_o_total-0.5)*aabb_scale+0.5
     W, H = runner.image_resolutions
     W = int(W)
@@ -95,7 +127,7 @@ def mesh():
     N_vertices = len(vertices_)
     img = []
     alpha = []
-    for start in range(0, N_vertices, runner.n_rays_per_batch):
+    for start in tqdm(range(0, N_vertices, runner.n_rays_per_batch)):
         with jt.no_grad():
             end = start + runner.n_rays_per_batch
             rays_o = rays_o_total[start:end]
@@ -121,8 +153,8 @@ def mesh():
     face = np.empty(len(mesh.triangles), dtype=[('vertex_indices', 'i4', (3,))])
     face['vertex_indices'] = mesh.triangles
     PlyData([PlyElement.describe(vertex_all, 'vertex'),
-             PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh"}.ply'))
-    print("mesh color generated mesh.ply")
+             PlyElement.describe(face, 'face')]).write(os.path.join(mesh_dir, f'{"mesh-color"}.ply'))
+    print("mesh color generated mesh-color.ply")
 
 
 if __name__ == "__main__":

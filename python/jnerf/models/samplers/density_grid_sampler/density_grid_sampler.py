@@ -94,15 +94,15 @@ class DensityGridSampler(nn.Module):
         proj_options[f"FLAGS: -I{header_path}"]=1
 
         self.density_grad_header = f"""
-        inline constexpr __device__ uint32_t NERF_GRIDSIZE() {{ return {self.NERF_GRIDSIZE}; }} // size of the density/occupancy grid.
-        inline constexpr __device__ float NERF_RENDERING_NEAR_DISTANCE() {{ return {self.NERF_RENDERING_NEAR_DISTANCE}f; }}
-        inline constexpr __device__ uint32_t NERF_STEPS() {{ return {self.MAX_STEP}; }} // finest number of steps per unit length
-        inline constexpr __device__ uint32_t NERF_CASCADES() {{ return {self.NERF_CASCADES}; }}
+        inline constexpr __device__ __host__ uint32_t NERF_GRIDSIZE() {{ return {self.NERF_GRIDSIZE}; }} // size of the density/occupancy grid.
+        inline constexpr __device__ __host__ float NERF_RENDERING_NEAR_DISTANCE() {{ return {self.NERF_RENDERING_NEAR_DISTANCE}f; }}
+        inline constexpr __device__ __host__ uint32_t NERF_STEPS() {{ return {self.MAX_STEP}; }} // finest number of steps per unit length
+        inline constexpr __device__ __host__ uint32_t NERF_CASCADES() {{ return {self.NERF_CASCADES}; }}
         inline __device__ float NERF_MIN_OPTICAL_THICKNESS() {{ return  {self.NERF_MIN_OPTICAL_THICKNESS}f; }}
-        inline constexpr __device__ float SQRT3() {{ return 1.73205080757f; }}
-        inline constexpr __device__ float STEPSIZE() {{ return (SQRT3() / NERF_STEPS()); }} // for nerf raymarch
-        inline constexpr __device__ float MIN_CONE_STEPSIZE() {{ return STEPSIZE(); }}
-        inline constexpr __device__ float MAX_CONE_STEPSIZE() {{ return STEPSIZE() * (1 << (NERF_CASCADES() - 1)) * NERF_STEPS() / NERF_GRIDSIZE(); }}
+        inline constexpr __device__ __host__ float SQRT3() {{ return 1.73205080757f; }}
+        inline constexpr __device__ __host__ float STEPSIZE() {{ return (SQRT3() / NERF_STEPS()); }} // for nerf raymarch
+        inline constexpr __device__ __host__ float MIN_CONE_STEPSIZE() {{ return STEPSIZE(); }}
+        inline constexpr __device__ __host__ float MAX_CONE_STEPSIZE() {{ return STEPSIZE() * (1 << (NERF_CASCADES() - 1)) * NERF_STEPS() / NERF_GRIDSIZE(); }}
         """
         if self.const_dt:
             self.density_grad_header+="""

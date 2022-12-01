@@ -84,6 +84,7 @@ class NerfDataset():
             else:
                 json_data['frames']+=data['frames']
 
+        assert json_data is not None, f"dataset is not found at {root_dir}"
         ## init set  scale & offset
         if 'h' in json_data:
             self.H=int(json_data['h'])
