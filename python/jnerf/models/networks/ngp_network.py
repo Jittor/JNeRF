@@ -1,4 +1,3 @@
-from turtle import pos, position
 import jittor as jt
 from jittor import nn, init
 import os
