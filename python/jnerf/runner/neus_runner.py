@@ -304,12 +304,12 @@ class NeuSRunner:
 
         vertices, triangles =\
             self.renderer.extract_geometry(bound_min, bound_max, resolution=resolution, threshold=threshold)
-        os.makedirs(os.path.join(self.base_exp_dir, 'meshes'), exist_ok=True)
+        os.makedirs(os.path.join(self.base_exp_dir, f'meshes_{resolution}'), exist_ok=True)
 
         if world_space:
             vertices = vertices * self.dataset.scale_mats_np[0][0, 0] + self.dataset.scale_mats_np[0][:3, 3][None]
 
         mesh = trimesh.Trimesh(vertices, triangles)
-        mesh.export(os.path.join(self.base_exp_dir, 'meshes', '{:0>8d}.ply'.format(self.iter_step)))
+        mesh.export(os.path.join(self.base_exp_dir, f'meshes_{resolution}', '{:0>8d}.ply'.format(self.iter_step)))
 
         logging.info('End')

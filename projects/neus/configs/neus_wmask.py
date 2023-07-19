@@ -75,7 +75,7 @@ render = dict(
     type = 'NeuSRenderer',
     n_samples = 64,
     n_importance = 64,
-    n_outside = 32,
+    n_outside = 0,           # w/o outside nerf to render background
     up_sample_steps = 4,     # 1 for simple coarse-to-fine sampling
     perturb = 1.0,
 )
@@ -87,7 +87,7 @@ optim = dict(
     betas=(0.9,0.99),
 )
 
-base_exp_dir = './log/dtu_scan24/womask'
+base_exp_dir = './log/dtu_scan24/wmask'
 recording = [ './','./models']
 
 learning_rate_alpha = 0.05
@@ -96,7 +96,7 @@ end_iter = 100000
 batch_size = 512
 validate_resolution_level = 6
 warm_up_end = 5000
-anneal_end = 50000
+anneal_end = 0
 use_white_bkgd = False
 
 save_freq = 10000
@@ -105,4 +105,4 @@ val_mesh_freq = 5000
 report_freq = 100
 
 igr_weight = 0.1
-mask_weight = 0.0
+mask_weight = 0.1           # enable mask loss

@@ -48,7 +48,7 @@ def main():
 
     assert args.type in ["novel_view","mesh"],f"{args.type} not support, please choose [novel_view, mesh]"
     assert args.task in ["train","test","render", "validate_mesh"],f"{args.task} not support, please choose [train, test, render, validate_mesh]"
-    
+    is_continue = False
     if args.task == 'validate_mesh':
         is_continue = True
 

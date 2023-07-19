@@ -382,12 +382,12 @@ class NeuSRenderer:
             'sdf': ret_fine['sdf'],
             'gradients': gradients,
             'alpha': ret_fine['alpha'],
-            'out_alpha': ret_outside['alpha'],
-            'out_dists': ret_outside['dists'],
+            # 'out_alpha': ret_outside['alpha'],
+            # 'out_dists': ret_outside['dists'],
             'z_vals': z_vals,
-            'z_vals_feed': z_vals_feed,
+            # 'z_vals_feed': z_vals_feed,
             'weights': weights,
-            'density': ret_outside['density'],
+            # 'density': ret_outside['density'],
             'gradient_error': ret_fine['gradient_error'],
             'inside_sphere': ret_fine['inside_sphere']
         }
