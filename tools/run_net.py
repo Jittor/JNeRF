@@ -69,7 +69,7 @@ def main():
     elif args.task == "render":
         runner.render(True, args.save_dir)
     elif args.task == 'validate_mesh':
-        runner.validate_mesh(world_space=True, resolution=512, threshold=args.mcube_threshold)
+        runner.validate_mesh(world_space=False, resolution=512, threshold=args.mcube_threshold)
 
 if __name__ == "__main__":
     main()

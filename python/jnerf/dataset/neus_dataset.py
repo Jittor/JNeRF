@@ -50,9 +50,9 @@ class NeuSDataset:
         self.camera_dict = camera_dict
         self.images_lis = sorted(glob(os.path.join(self.data_dir, 'image/*.png')))
         self.n_images = len(self.images_lis)
-        self.images_np = np.stack([cv.imread(im_name) for im_name in self.images_lis]) / 256.0
+        self.images = jt.stack([jt.array(cv.imread(im_name)) for im_name in self.images_lis]) / 256.0
         self.masks_lis = sorted(glob(os.path.join(self.data_dir, 'mask/*.png')))
-        self.masks_np = np.stack([cv.imread(im_name) for im_name in self.masks_lis]) / 256.0
+        self.masks = jt.stack([jt.array(cv.imread(im_name)) for im_name in self.masks_lis]) / 256.0
 
         # world_mat is a projection matrix from world to image
         self.world_mats_np = [camera_dict['world_mat_%d' % idx].astype(np.float32) for idx in range(self.n_images)]
@@ -72,8 +72,8 @@ class NeuSDataset:
             self.intrinsics_all.append(jt.Var(intrinsics).float())
             self.pose_all.append(jt.Var(pose).float())
 
-        self.images = jt.Var(self.images_np.astype(np.float32))  # [n_images, H, W, 3]
-        self.masks  = jt.Var(self.masks_np.astype(np.float32))   # [n_images, H, W, 3]
+        # self.images = jt.Var(self.images_np.astype(np.float32))  # [n_images, H, W, 3]
+        # self.masks  = jt.Var(self.masks_np.astype(np.float32))   # [n_images, H, W, 3]
         self.intrinsics_all = jt.stack(self.intrinsics_all)   # [n_images, 4, 4]
         self.intrinsics_all_inv = jt.linalg.inv(self.intrinsics_all)  # [n_images, 4, 4]
         self.focal = self.intrinsics_all[0][0, 0]
