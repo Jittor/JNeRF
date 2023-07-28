@@ -61,8 +61,13 @@ base_exp_dir = './log/dtu_scan24/womask'
 
 Use the following command to train the network.
 ```
+# without mask
 python tools/run_net.py --config-file ./projects/neus/configs/neus_womask.py --type mesh --task train
+# with mask
+python tools/run_net.py --config-file ./projects/neus/configs/neus_wmask.py --type mesh --task train
 ```
+
+ps. As competition baseline, using `neus_wmask.py` will have better performance.
 
 During training, the network will output `depth`, `normal`, `RGB`, and `mesh`. However, the quality of the mesh is lower at this point to speed up training.
 
@@ -74,7 +79,10 @@ During training, the network will output `depth`, `normal`, `RGB`, and `mesh`. H
 
 After finishing training the network, you can use the following command to extract the high quality mesh, and the mesh is saved in the results folder ( eg. `./log/dtu_scan24/womask/mesh_512` ).
 ```
+# without mask
 python tools/run_net.py --config-file ./projects/neus/configs/neus_womask.py --type mesh --task validate_mesh
+# with mask
+python tools/run_net.py --config-file ./projects/neus/configs/neus_wmask.py --type mesh --task validate_mesh
 ```
 
 ![](./fig/mesh.png)
