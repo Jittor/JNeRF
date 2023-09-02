@@ -50,7 +50,8 @@ We use fox datasets and blender lego datasets for training demonstrations.
 We provided fox dataset (from [Instant-NGP](https://github.com/NVlabs/instant-ngp)) in this repository at `./data/fox`.
 
 #### Lego Dataset
-You can download the lego dataset in nerf_example_data.zip at https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1. And move `lego` folder to `./data/lego`.
+You can download the lego dataset in nerf_example_data.zip at https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1. And move `lego` folder to `./data/lego`.\
+At the same time, we also provide automatic downloading of lego dataset. You can directly run the commands related to lego dataset.
 
 #### Customized Datasets
 
