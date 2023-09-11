@@ -1,0 +1,10 @@
+<!DOCTYPE FilterScript>
+<FilterScript>
+ <filter name="Surface Reconstruction: Ball Pivoting">
+  <Param type="RichAbsPerc" value="0.005" min="0" name="BallRadius" max="1.15209"/>
+  <Param type="RichFloat" value="20" name="Clustering"/>
+  <Param type="RichFloat" value="90" name="CreaseThr"/>
+  <Param type="RichBool" value="false" name="DeleteFaces"/>
+ </filter>
+
+</FilterScript>

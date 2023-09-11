@@ -1,0 +1,18 @@
+exp_name = example2
+data_dir = datasets/mixamo_data/data/0/
+split_file = datasets/mixamo_data/data/split_mixamo_overfit.npz
+input_data_glob = /*/model.obj
+sample_std_dev = [0.08, 0.02, 0.003]
+sample_ratio = [0.01, 0.49, 0.5]
+lr = 1e-6
+num_epochs = 200000000
+
+index = 0
+pc_samples = 10000
+
+cam_position = [0, 2, 0]
+cam_orientation = [-90.0, 180.0, 0.0]
+debug_mode = True
+screen_depth = -1
+max_depth = 3
+step_back = 0.0

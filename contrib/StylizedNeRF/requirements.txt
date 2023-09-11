@@ -1,0 +1,17 @@
+torch
+torch-vision
+opencv-python
+opencv-contrib-python
+imageio
+psutil
+plyfile
+pyrender
+tqdm
+matplotlib
+scikit-image
+natsort
+configargparse
+open3d
+tensorboardX
+pytorch3d
+jittor
