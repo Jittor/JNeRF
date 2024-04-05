@@ -127,16 +127,17 @@ JNeRF will support more valuable NeRF models in the future, if you are also inte
 
 - :heavy_check_mark: Instant-NGP
 - :heavy_check_mark: NeRF
-- :clock3: Mip-NeRF
+- :heavy_check_mark: NeuS
+- :heavy_check_mark: Mip-NeRF
+- :heavy_check_mark: Plenoxels
+- :heavy_check_mark: Recursive-NeRF
+- :heavy_check_mark: pixelNeRF
 - :clock3: PaletteNeRF
-- :clock3: Plenoxels
 - :heavy_plus_sign: StylizedNeRF
 - :heavy_plus_sign: NeRF-Editing
 - :heavy_plus_sign: DrawingInStyles
 - :heavy_plus_sign: NSVF
 - :heavy_plus_sign: NeRFactor
-- :heavy_plus_sign: pixelNeRF
-- :heavy_plus_sign: Recursive-NeRF
 - :heavy_plus_sign: StyleNeRF
 - :heavy_plus_sign: EG3D
 - :heavy_plus_sign: ...
