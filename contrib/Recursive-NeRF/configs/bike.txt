@@ -1,0 +1,18 @@
+expname = bike
+datadir = ./data/our_seq_bike
+dataset_type = blender
+
+no_batching = True
+
+use_viewdirs = True
+white_bkgd = False
+lrate_decay = 500
+
+N_samples = 64
+N_importance = 128
+N_rand = 512
+
+half_res = False
+raw_noise_std = 1e0
+blender_factor = 8
+testskip = 1

@@ -1,0 +1,8 @@
+jittor
+imageio
+imageio-ffmpeg
+matplotlib
+configargparse
+tensorboard==1.14.0
+tqdm
+opencv-python
