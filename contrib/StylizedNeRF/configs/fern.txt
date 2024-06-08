@@ -1,0 +1,27 @@
+expname = fern_style
+basedir = ./logs
+datadir = ./data/fern
+styledir = ./small_style/
+dataset_type = llff
+
+factor = 4
+
+nerf_type = style_nerf
+nerf_type_fine = style_nerf
+style_type = mlp
+latent_type = variational
+
+batch_size = 2048
+batch_size_style = 1024
+N_samples = 64
+N_samples_fine = 64
+
+use_viewdir
+sigma_noise_std = 1e0
+
+origin_step = 120001
+total_step = 5000001
+
+style_D = 8
+valid_factor = 3
+gen_factor = 1
