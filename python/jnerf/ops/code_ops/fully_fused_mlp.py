@@ -21,8 +21,8 @@ class FullyFusedMlp_weight(jt.Function):
         self.width = 0
         self.output_intermediate = None
         con_weights = []
-        self.code_path = pathlib.Path(__file__+"/../op_header").resolve()
-        self.so_name = os.path.join(pathlib.Path(__file__+"/../op_header").resolve(), "fully_fused_mlp_function.o")
+        self.code_path = pathlib.Path(__file__+"/../").resolve()
+        self.so_name = os.path.join(pathlib.Path(__file__+"/../op_header").resolve(), "fully_fused_mlp_function.cc")
         for i in range(len(weights)):
             if i == 0:
                 self.weight_shape0 = weights[0].shape[0]
@@ -81,7 +81,7 @@ class FullyFusedMlp_weight(jt.Function):
         else:
             self.padded_input = self.input
         self.outputs, self.output_intermediate = jt.code([(self.padded_input.shape[0], 16), (self.padded_input.shape[0] * (len(self.weights) - 1), self.width)], [a.dtype, a.dtype], [self.padded_input, con_weights], cuda_header=cuda_header, cuda_src=cuda_src)
-        self.outputs.compile_options = {f"FLAGS: -I{self.code_path} -Xlinker {self.so_name} ":1}
+        self.outputs.compile_options = {f"FLAGS: -I{self.code_path}":1}
         self.con_weights = con_weights
         return self.outputs[:self.input.shape[0]]
 
@@ -115,7 +115,7 @@ class FullyFusedMlp_weight(jt.Function):
         );
         '''
         output, grad_temps = jt.code([(self.padded_input.shape[0], self.input.shape[1]), ((len(self.weights)-1) * self.padded_input.shape[0],  self.width)], [self.input.dtype, self.input.dtype], [grads.transpose(), self.con_weights, self.output_intermediate], cuda_header=cuda_header, cuda_src=cuda_src)
-        output.compile_options = {f"FLAGS: -I{self.code_path} -Xlinker {self.so_name} ":1}
+        output.compile_options = {f"FLAGS: -I{self.code_path}":1}
         if self.check_mid == "1":
             self.grad_temps = grad_temps
         if not need_last:

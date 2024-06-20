@@ -5,7 +5,7 @@ import os
 dirname = os.path.dirname(__file__)
 LOG.i(f"JNeRF({__version__}) at {dirname}")
 import sys
-assert sys.platform == "linux", "Windows/MacOS is not supported yet, everyone is welcome to contribute to this"
+assert sys.platform == "linux" or sys.platform == "win32" # "MacOS is not supported yet, everyone is welcome to contribute to this"
 
 sp_char = ' "\''
 for char in sp_char:
