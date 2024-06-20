@@ -18,6 +18,9 @@ class NerfDataset():
 
     def __init__(self,root_dir, batch_size, mode='train', H=0, W=0, correct_pose=[1,-1,-1], aabb_scale=None, scale=None, offset=None, img_alpha=True,to_jt=True, have_img=True, preload_shuffle=True):
         self.root_dir=root_dir
+        # we prepare lego dataset that can be downloaded automatically
+        if os.path.basename(root_dir)=='lego' and not os.path.exists(root_dir):
+            download_dataset(rootdir=root_dir)
         self.batch_size=batch_size
         self.preload_shuffle=preload_shuffle
         self.H=H
