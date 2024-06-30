@@ -148,13 +148,9 @@ If you are interested in JNeRF or NeRF research and want to build the JNeRF comm
 
 Email: jittor@qq.com
 
-JNeRF QQ Group: 689063884
+QQ Group: 836860279
 
-<img src="docs/jnerf_qrcode.jpg" width="200"/>
-
-If you have any questions about Jittor, you can [file an issue](https://github.com/Jittor/jittor/issues), or join our Jittor QQ Group: 761222083
-
-<img src="docs/jittor_qrcode.jpg" width="200"/>
+<img src="https://github.com/Jittor/jittor/assets/62846124/8dd830bd-b31c-4e4f-9a78-5fd7a3409145" width="200"/>
 
 ## Acknowledgements
 
