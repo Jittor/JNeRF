@@ -39,7 +39,7 @@ class Runner():
         self.background_color   = self.cfg.background_color
         self.tot_train_steps    = self.cfg.tot_train_steps
         self.n_rays_per_batch   = self.cfg.n_rays_per_batch
-        self.using_fp16         = self.cfg.fp16
+        self.using_fp16         = False # not support fp16
         self.save_path          = os.path.join(self.cfg.log_dir, self.exp_name)
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)

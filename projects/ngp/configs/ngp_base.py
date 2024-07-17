@@ -76,8 +76,6 @@ target_batch_size = 1<<18
 # Set const_dt=True for higher performance
 # Set const_dt=False for faster convergence
 const_dt=True
-# Use fp16 for faster training
-fp16 = True
 # Load pre-trained model
 load_ckpt = False
 # path of checkpoint file, None for default path
