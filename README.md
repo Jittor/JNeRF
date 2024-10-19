@@ -141,6 +141,7 @@ JNeRF will support more valuable NeRF models in the future, if you are also inte
 - :heavy_plus_sign: NeRFactor
 - :heavy_plus_sign: StyleNeRF
 - :heavy_plus_sign: EG3D
+- :heavy_plus_sign: SN2eRF
 - :heavy_plus_sign: ...
 
 ## Contact Us
