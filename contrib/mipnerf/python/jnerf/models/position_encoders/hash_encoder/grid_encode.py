@@ -61,7 +61,10 @@ class GridEncode(Function):
         self.m_grid_gradient = jt.empty([m_n_params], self.grad_type)
         self.m_stochastic_interpolation = 0
         header_path = os.path.join(os.path.dirname(__file__), 'op_header')
-        proj_options[f"FLAGS: -I{header_path}"]=1
+        if sys.platform == "linux":
+            proj_options[f"FLAGS: -I{header_path}"]=1
+        else:
+            proj_options[f'FLAGS: -I"{header_path}"']=1
 
     def execute(self, x,m_grid):
         self.num_elements=x.shape[0]
@@ -87,7 +90,7 @@ class GridEncode(Function):
 		const uint32_t blocks = div_round_up(num_elements, threads.x);
         extract_position<float,N_POS_DIMS><<<blocks, threads, 0, stream>>>(
 			num_elements,
-		{{in1_p,in1_shape1}},
+		{{in1_p,(size_t)in1_shape1}},
 			m_positions_p
 		);
         static constexpr uint32_t N_THREADS_HASHGRID = 512;
@@ -115,7 +118,7 @@ class GridEncode(Function):
         const dim3 threads_transpose = {{ {self.m_n_levels}, 8, 1 }};
 		const uint32_t blocks_transpose = div_round_up(num_elements, threads_transpose.y);
        
-        PitchedPtr<grad_t> outputs{{ out0_p,out0_shape1 }};
+        PitchedPtr<grad_t> outputs{{ out0_p,(size_t)out0_shape1 }};
            
 	    transpose_encoded_position<vector_t<grad_t,N_FEATURES_PER_LEVEL>><<<blocks_transpose, threads_transpose, 0, stream>>>(
 			num_elements,
@@ -149,7 +152,7 @@ class GridEncode(Function):
         const unsigned int N_FEATURES_PER_LEVEL={self.N_FEATURES_PER_LEVEL};                 
         cudaStream_t stream=0;
 	    const dim3 threads_transpose ={{  {self.m_n_levels} , 8, 1}};
-        PitchedPtr<grad_t> dL_dy{{ in2_p,in2_shape1 }};
+        PitchedPtr<grad_t> dL_dy{{ in2_p,(size_t)in2_shape1 }};
         cudaMemsetAsync(out0_p, 0, out0->size);    
         const uint32_t blocks_transpose = div_round_up(num_elements, threads_transpose.y);  
         transpose_gradients<vector_t<grad_t, N_FEATURES_PER_LEVEL>><<<blocks_transpose, threads_transpose, 0, stream>>>(
